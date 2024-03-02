@@ -32,7 +32,7 @@ m = 0
 for i in range(2):
     for j in range(3):
 
-        df = pd.read_csv(f"csv/{models[m]}.csv")
+        df = pd.read_csv(f"csv/{models[m]}_1.csv")
 
         columns = df.columns[1:]
 
@@ -52,6 +52,6 @@ for i in range(2):
 plt.tight_layout()
 
 # Show the plot
-plt.savefig(f"plots/all_plots.png")
+plt.savefig(f"plots/all_plots_1.png")
 
 

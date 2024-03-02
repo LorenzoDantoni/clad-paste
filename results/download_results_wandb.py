@@ -124,8 +124,6 @@ def calculate_avg_forgetting(run):
 
 def avg_runs(cl_runs: dict, data: pd.DataFrame) -> pd.DataFrame:
 
-    dfs = []
-
     for scenario, rep in cl_runs.items():
         columns = {}
 
@@ -138,13 +136,12 @@ def avg_runs(cl_runs: dict, data: pd.DataFrame) -> pd.DataFrame:
 
         avg_df = pd.DataFrame(data = columns)
 
-        avg_df.mean()
-        avg_df["scenario"] = scenario 
-        dfs.append(avg_df)
+        avg_df = avg_df.mean()
+        
+        data[f"CL-{scenario}"] = avg_df.to_list()
 
-    return pd.concat(dfs)
+
     
-
 def get_plot_dfs(api: wandb.Api, credentials: json, seed: int):
 
     for model in tqdm(models): 
@@ -181,14 +178,9 @@ def get_plot_dfs(api: wandb.Api, credentials: json, seed: int):
             }
 
             for run in runs:
-                cl_runs[run.name.split("-")[1]].append(run.history(keys=["Summary/evaluation_ad/f1"])["Summary/evaluation_ad/f1"])
+                cl_runs[run.name.split("-")[1]].append(run.history(keys=["Summary/evaluation_ad/f1"])["Summary/evaluation_ad/f1"].values)
                 
-            avg_df = avg_runs(cl_runs, data)
-
-            data["replay-40"] = avg_df.loc[avg_df["scenario"] == "40"].drop(columns=["scenario"]).iloc[0].tolist()
-            data["replay-100"] = avg_df.loc[avg_df["scenario"] == "100"].drop(columns=["scenario"]).iloc[0].tolist()
-            data["replay-300"] = avg_df.loc[avg_df["scenario"] == "300"].drop(columns=["scenario"]).iloc[0].tolist()
-
+            avg_runs(cl_runs, data)
 
             runs = api.runs(path = f"{credentials['entity']}/{credentials['project_name']}", filters={"$and": [{"tags": model}, {"tags": {"$ne": "replay"}}]})
 
@@ -200,8 +192,7 @@ def get_plot_dfs(api: wandb.Api, credentials: json, seed: int):
 
         data = pd.DataFrame(data)
         data.to_csv(f'csv/{model}_1.csv', index=False)
-            
-        
+                   
 def main():
     #get the wandb credentials
     f = open(f"{credentials_path}", "rb")
