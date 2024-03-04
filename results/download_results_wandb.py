@@ -104,6 +104,7 @@ def return_summaries_dataframes(api: wandb.Api, credentials: json) -> pd.DataFra
                 
     return pd.DataFrame(data)
 
+
 def calculate_avg_forgetting(run): 
     avg_forgetting = 0
 
@@ -122,6 +123,7 @@ def calculate_avg_forgetting(run):
     
     return (avg_forgetting / 9) * 100
 
+
 def avg_runs(cl_runs: dict, data: pd.DataFrame) -> pd.DataFrame:
 
     for scenario, rep in cl_runs.items():
@@ -138,7 +140,7 @@ def avg_runs(cl_runs: dict, data: pd.DataFrame) -> pd.DataFrame:
 
         avg_df = avg_df.mean()
         
-        data[f"CL-{scenario}"] = avg_df.to_list()
+        data[f"replay-{scenario}"] = avg_df.to_list()
 
 
     
