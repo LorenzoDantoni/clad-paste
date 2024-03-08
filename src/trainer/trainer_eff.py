@@ -28,14 +28,14 @@ class Trainer_eff():
     def __init__(self,strategy, eff):
         self.strategy = strategy
         self.device = strategy.device
-        self.vae = eff
+        self.ad_model = eff
         self.batch_size = strategy.parameters['batch_size']
         self.lr = self.strategy.lr
         self.b1 = self.strategy.b1
         self.b2 = self.strategy.b2
         self.weight_decay = self.strategy.weight_decay
-        self.optimizer = torch.optim.Adam(itertools.chain(self.vae.student.parameters(),
-                                                 self.vae.autoencoder.parameters()),
+        self.optimizer = torch.optim.Adam(itertools.chain(self.ad_model.student.parameters(),
+                                                 self.ad_model.autoencoder.parameters()),
                                  lr=1e-4, weight_decay=1e-5)
         
         self.pretrain_penalty = True
@@ -65,13 +65,13 @@ class Trainer_eff():
     
 
     def train_epoch(self,dataloader):
-        self.vae.training = True
+        self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.train()
-        self.vae.autoencoder.train()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.train()
+        self.ad_model.autoencoder.train()
 
         batch_index = 0
         tqdm_obj = tqdm(range(dataSize))
@@ -88,11 +88,11 @@ class Trainer_eff():
 
             self.optimizer.zero_grad()
         
-            image_st = image_st.to(self.vae.device)
-            image_ae = image_ae.to(self.vae.device)
-            image_penalty = image_penalty.to(self.vae.device)
+            image_st = image_st.to(self.ad_model.device)
+            image_ae = image_ae.to(self.ad_model.device)
+            image_penalty = image_penalty.to(self.ad_model.device)
 
-            loss = self.vae(image_st, image_ae, image_penalty)
+            loss = self.ad_model(image_st, image_ae, image_penalty)
 
             loss.backward()
             self.optimizer.step()
@@ -108,18 +108,18 @@ class Trainer_eff():
             batch_index += 1
 
         '''
-        torch.save(self.vae.teacher, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.teacher, os.path.join(self.strategy.train_output_dir,
                                             'teacher_tmp.pth'))
-        torch.save(self.vae.student, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.student, os.path.join(self.strategy.train_output_dir,
                                             'student_tmp.pth'))
-        torch.save(self.vae.autoencoder, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.autoencoder, os.path.join(self.strategy.train_output_dir,
                                                 'autoencoder_tmp.pth'))
         '''
         if self.strategy.parameters['early_stopping'] == True:
             run_name1 = 'model_student'+str(self.strategy.current_epoch)
             run_name2 = 'model_autoencoder'+str(self.strategy.current_epoch)
-            torch.save(self.vae.student.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
-            torch.save(self.vae.autoencoder.state_dict(), os.path.join(self.strategy.checkpoints, run_name2 + ".pckl"))
+            torch.save(self.ad_model.student.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
+            torch.save(self.ad_model.autoencoder.state_dict(), os.path.join(self.strategy.checkpoints, run_name2 + ".pckl"))
             
             
         l_fastflow_loss /= dataSize
@@ -134,21 +134,21 @@ class Trainer_eff():
 
     def test_epoch(self,dataloader):
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.eval()
-        self.vae.autoencoder.eval()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.eval()
+        self.ad_model.autoencoder.eval()
 
         q_st_start, q_st_end, q_ae_start, q_ae_end = map_normalization(
-        validation_loader=dataloader, teacher=self.vae.teacher,
-        student=self.vae.student, autoencoder=self.vae.autoencoder,
-        teacher_mean=self.vae.teacher_mean, teacher_std=self.vae.teacher_std,
+        validation_loader=dataloader, teacher=self.ad_model.teacher,
+        student=self.ad_model.student, autoencoder=self.ad_model.autoencoder,
+        teacher_mean=self.ad_model.teacher_mean, teacher_std=self.ad_model.teacher_std,
         desc='Intermediate map normalization')
 
         self.q_st_start, self.q_st_end, self.q_ae_start, self.q_ae_end = q_st_start, q_st_end, q_ae_start, q_ae_end
@@ -161,13 +161,13 @@ class Trainer_eff():
             ###
             image_st = batch[0][:,0]
             #print(image_st.shape)
-            image_st = image_st.to(self.vae.device)
+            image_st = image_st.to(self.ad_model.device)
             
             with torch.no_grad():
                 map_combined, map_st, map_ae = predict(
-                    image=image_st, teacher=self.vae.teacher, student=self.vae.student,
-                    autoencoder=self.vae.autoencoder, teacher_mean=self.vae.teacher_mean,
-                    teacher_std=self.vae.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end,
+                    image=image_st, teacher=self.ad_model.teacher, student=self.ad_model.student,
+                    autoencoder=self.ad_model.autoencoder, teacher_mean=self.ad_model.teacher_mean,
+                    teacher_std=self.ad_model.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end,
                     q_ae_start=q_ae_start, q_ae_end=q_ae_end)
                 map_combined = torch.nn.functional.pad(map_combined, (4, 4, 4, 4))
                 map_combined = torch.nn.functional.interpolate(
@@ -204,24 +204,24 @@ class Trainer_eff():
 
     def evaluate_data(self, dataloader,test_loss_function=None):  
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.eval()
-        self.vae.autoencoder.eval()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.eval()
+        self.ad_model.autoencoder.eval()
 
 
         #self.trainer.vae.teacher_mean, self.trainer.vae.teacher_std = teacher_normalization(self.trainer.vae.teacher, dataloader)
 
         q_st_start, q_st_end, q_ae_start, q_ae_end = map_normalization(
-        validation_loader=dataloader, teacher=self.vae.teacher,
-        student=self.vae.student, autoencoder=self.vae.autoencoder,
-        teacher_mean=self.vae.teacher_mean, teacher_std=self.vae.teacher_std,
+        validation_loader=dataloader, teacher=self.ad_model.teacher,
+        student=self.ad_model.student, autoencoder=self.ad_model.autoencoder,
+        teacher_mean=self.ad_model.teacher_mean, teacher_std=self.ad_model.teacher_std,
         desc='Intermediate map normalization')
 
 
@@ -234,13 +234,13 @@ class Trainer_eff():
             ###
             image_st = batch[0][:,0]
             test_imgs.extend(image_st.detach().numpy())
-            image_st = image_st.to(self.vae.device)
+            image_st = image_st.to(self.ad_model.device)
 
             with torch.no_grad():
                 map_combined, map_st, map_ae = predict(
-                    image=image_st, teacher=self.vae.teacher, student=self.vae.student,
-                    autoencoder=self.vae.autoencoder, teacher_mean=self.vae.teacher_mean,
-                    teacher_std=self.vae.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end,
+                    image=image_st, teacher=self.ad_model.teacher, student=self.ad_model.student,
+                    autoencoder=self.ad_model.autoencoder, teacher_mean=self.ad_model.teacher_mean,
+                    teacher_std=self.ad_model.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end,
                     q_ae_start=q_ae_start, q_ae_end=q_ae_end)
                 map_combined = torch.nn.functional.pad(map_combined, (4, 4, 4, 4))
                 map_combined = torch.nn.functional.interpolate(

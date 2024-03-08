@@ -29,7 +29,7 @@ class Trainer_draem():
     def __init__(self,strategy, draem):
         self.strategy = strategy
         self.device = strategy.device
-        self.vae = draem
+        self.ad_model = draem
         self.batch_size = strategy.parameters['batch_size']
         self.lr = self.strategy.lr
         self.num_epochs = self.strategy.parameters['num_epochs']
@@ -37,20 +37,20 @@ class Trainer_draem():
         #self.b2 = self.strategy.b2
         #self.weight_decay = self.strategy.weight_decay
         self.optimizer = torch.optim.Adam([
-                                      {"params": self.vae.model.parameters(), "lr": self.lr},
-                                      {"params": self.vae.model_seg.parameters(), "lr": self.lr}])
+                                      {"params": self.ad_model.model.parameters(), "lr": self.lr},
+                                      {"params": self.ad_model.model_seg.parameters(), "lr": self.lr}])
         
         #added
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer,[self.num_epochs*0.8,self.num_epochs*0.9],gamma=0.2, last_epoch=-1)
 
 
     def train_epoch(self,dataloader):
-        self.vae.training = True
+        self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = [] 
-        self.vae.model.train()
-        self.vae.model_seg.train()
+        self.ad_model.model.train()
+        self.ad_model.model_seg.train()
 
         batch_index = 0
 
@@ -65,11 +65,11 @@ class Trainer_draem():
 
             self.optimizer.zero_grad()
 
-            gray_batch = batch[0]["image"].to(self.vae.device)
-            aug_gray_batch = batch[0]["augmented_image"].to(self.vae.device)
-            anomaly_mask = batch[0]["anomaly_mask"].to(self.vae.device)
+            gray_batch = batch[0]["image"].to(self.ad_model.device)
+            aug_gray_batch = batch[0]["augmented_image"].to(self.ad_model.device)
+            anomaly_mask = batch[0]["anomaly_mask"].to(self.ad_model.device)
 
-            loss = self.vae(gray_batch, aug_gray_batch, anomaly_mask)
+            loss = self.ad_model(gray_batch, aug_gray_batch, anomaly_mask)
 
             loss.backward()
             self.optimizer.step()
@@ -88,8 +88,8 @@ class Trainer_draem():
         if self.strategy.parameters['early_stopping'] == True:
             run_name1 = 'model_'+str(self.strategy.current_epoch)
             run_name2 = 'model_seg_'+str(self.strategy.current_epoch)
-            torch.save(self.vae.model.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
-            torch.save(self.vae.model_seg.state_dict(), os.path.join(self.strategy.checkpoints, run_name2 + ".pckl"))
+            torch.save(self.ad_model.model.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
+            torch.save(self.ad_model.model_seg.state_dict(), os.path.join(self.strategy.checkpoints, run_name2 + ".pckl"))
 
         l_fastflow_loss /= dataSize
         lista_indices = np.asarray(lista_indices)
@@ -102,15 +102,15 @@ class Trainer_draem():
 
     def test_epoch(self,dataloader):
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
         lista_indices = [] 
-        self.vae.model.eval()
-        self.vae.model_seg.eval()
+        self.ad_model.model.eval()
+        self.ad_model.model_seg.eval()
         image_preds = []
         for batch in tqdm(dataloader):
             masks = []
@@ -118,9 +118,9 @@ class Trainer_draem():
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
             ###
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
-            heatmap, anomaly_score = self.vae.model_test(data)#tensor(1,256,256), tensor(1,)
+            heatmap, anomaly_score = self.ad_model.model_test(data)#tensor(1,256,256), tensor(1,)
             image_preds.append(anomaly_score)
     
             ###
@@ -158,15 +158,15 @@ class Trainer_draem():
 
     def evaluate_data(self, dataloader,test_loss_function=None):  
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
         lista_indices = [] 
-        self.vae.model.eval()
-        self.vae.model_seg.eval()
+        self.ad_model.model.eval()
+        self.ad_model.model_seg.eval()
         image_preds = []
 
         for batch in tqdm(dataloader):
@@ -176,9 +176,9 @@ class Trainer_draem():
             test_imgs.extend(data.detach().numpy())
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
             ###
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
-            heatmap, anomaly_score = self.vae.model_test(data)#numpy(1,256,256), numpy(1,)
+            heatmap, anomaly_score = self.ad_model.model_test(data)#numpy(1,256,256), numpy(1,)
             #added
             
             image_preds.append(anomaly_score)

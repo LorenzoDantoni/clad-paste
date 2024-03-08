@@ -61,8 +61,8 @@ from src.models.draem import *
 from src.trainer.trainer_draem import *
 
 #Added
-from src.models.storig import *
-from src.trainer.trainer_storig import *
+from adcl_paper.src.models.stfpm import *
+from adcl_paper.src.trainer.trainer_stpfm import *
 
 #ADDED
 import time
@@ -147,9 +147,9 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
         trainer = Trainer_draem(strategy,draem)   
 
         #Added
-    elif architecture == "storig":
-        storig, device = create_storig(strategy,input_size, parameters)
-        trainer = Trainer_storig(strategy,storig)   
+    elif architecture == "stfpm":
+        storig, device = create_stfpm(strategy,input_size, parameters)
+        trainer = Trainer_STFPM(strategy,storig)   
 
         #Added
     elif architecture == "eff":

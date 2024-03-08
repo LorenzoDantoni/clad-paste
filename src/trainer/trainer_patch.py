@@ -25,7 +25,7 @@ from src.utilities.utility_plot import*
 class Trainer_patch():
     def __init__(self,strategy, patch):
         self.strategy = strategy
-        self.vae = patch
+        self.ad_model = patch
     
     def train_epoch(self,dataloader):
 
@@ -42,9 +42,9 @@ class Trainer_patch():
             lista_indices.extend(indices.detach().cpu().numpy())
             
             
-            x = x.to(self.vae.device)
+            x = x.to(self.ad_model.device)
             self.strategy.model.eval()
-            feature_maps = self.vae(x, self.strategy.model)
+            feature_maps = self.ad_model(x, self.strategy.model)
 
             '''
             # only for debugging
@@ -55,10 +55,10 @@ class Trainer_patch():
             '''
             batch_index += 1
 
-            if self.vae.resize is None:
+            if self.ad_model.resize is None:
                 largest_fmap_size = feature_maps[0].shape[-2:]
-                self.vae.resize = torch.nn.AdaptiveAvgPool2d(largest_fmap_size)
-            resized_maps = [self.vae.resize(self.vae.average(fmap)) for fmap in feature_maps]
+                self.ad_model.resize = torch.nn.AdaptiveAvgPool2d(largest_fmap_size)
+            resized_maps = [self.ad_model.resize(self.ad_model.average(fmap)) for fmap in feature_maps]
             patch = torch.cat(resized_maps, 1)
             patch = patch.reshape(patch.shape[1], -1).T
             #print(f'Batch patch size: {patch.shape}')
@@ -71,18 +71,18 @@ class Trainer_patch():
         mem_size = self.strategy.parameters['mem_size_cl']
         
         if self.strategy.parameters['cl'] == False:
-            if self.vae.f_coreset < 1:
-                coreset_idx = get_coreset_idx_randomp(patch_lib, n=int(self.vae.f_coreset * patch_lib.shape[0]),eps=self.vae.coreset_eps)
+            if self.ad_model.f_coreset < 1:
+                coreset_idx = get_coreset_idx_randomp(patch_lib, n=int(self.ad_model.f_coreset * patch_lib.shape[0]),eps=self.ad_model.coreset_eps)
                 patch_lib = patch_lib[coreset_idx]
-                self.vae.list_mem.append(patch_lib.detach().to(self.vae.device))
+                self.ad_model.list_mem.append(patch_lib.detach().to(self.ad_model.device))
         else:
-            for i in range(len(self.vae.list_mem)):
-                coreset_idx = get_coreset_idx_randomp(self.vae.list_mem[i],  n=int(mem_size/(self.strategy.index_training+1)),eps=self.vae.coreset_eps)
-                self.vae.list_mem[i] = self.vae.list_mem[i][coreset_idx]
+            for i in range(len(self.ad_model.list_mem)):
+                coreset_idx = get_coreset_idx_randomp(self.ad_model.list_mem[i],  n=int(mem_size/(self.strategy.index_training+1)),eps=self.ad_model.coreset_eps)
+                self.ad_model.list_mem[i] = self.ad_model.list_mem[i][coreset_idx]
 
-            coreset_idx = get_coreset_idx_randomp(patch_lib, n=int(mem_size/(self.strategy.index_training+1)),eps=self.vae.coreset_eps)
+            coreset_idx = get_coreset_idx_randomp(patch_lib, n=int(mem_size/(self.strategy.index_training+1)),eps=self.ad_model.coreset_eps)
             patch_lib = patch_lib[coreset_idx]
-            self.vae.list_mem.append(patch_lib.detach().to(self.vae.device))
+            self.ad_model.list_mem.append(patch_lib.detach().to(self.ad_model.device))
 
 
         lista_indices = np.asarray(lista_indices)
@@ -114,35 +114,35 @@ class Trainer_patch():
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().numpy()) 
             test_imgs.extend(data.detach().numpy())
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
             self.strategy.model.eval()
-            feature_maps = self.vae(data,self.strategy.model)
-            resized_maps = [self.vae.resize(self.vae.average(fmap)) for fmap in feature_maps]
+            feature_maps = self.ad_model(data,self.strategy.model)
+            resized_maps = [self.ad_model.resize(self.ad_model.average(fmap)) for fmap in feature_maps]
             patch = torch.cat(resized_maps, 1)
             patch = patch.reshape(patch.shape[1], -1).T
             
             #added
-            patch = patch.to(self.vae.device)
+            patch = patch.to(self.ad_model.device)
             
             minimum = 10000000000
             index_task = -1
 
-            #print(f"memory len:len(self.vae.list_mem)")
-            for i in range(len(self.vae.list_mem)):
+            #print(f"memory len:len(self.ad_model.list_mem)")
+            for i in range(len(self.ad_model.list_mem)):
                 dist = torch.tensor(0)
-                dist = torch.cdist(patch, self.vae.list_mem[i])
+                dist = torch.cdist(patch, self.ad_model.list_mem[i])
                 min_val1, min_idx1 = torch.tensor(0),torch.tensor(0)
                 min_val1, min_idx1 = torch.min(dist, dim=1)
                 s_idx1 = torch.argmax(min_val1)
                 s_star1 = torch.max(min_val1)
                 if torch.mean(min_val1)<minimum:
                      minimum = torch.mean(min_val1).clone()
-                     s_star = s_star1.clone().to(self.vae.device)
+                     s_star = s_star1.clone().to(self.ad_model.device)
                      index_task = i
-                     min_val = min_val1.clone().to(self.vae.device)
-                     min_idx = min_idx1.clone().to(self.vae.device)
-                     s_idx = s_idx1.clone().to(self.vae.device)
+                     min_val = min_val1.clone().to(self.ad_model.device)
+                     min_idx = min_idx1.clone().to(self.ad_model.device)
+                     s_idx = s_idx1.clone().to(self.ad_model.device)
 
             #print(f"Chosen class:{index_task}")
             if index_task == test_task_index:
@@ -150,11 +150,11 @@ class Trainer_patch():
 
             # reweighting
             m_test = patch[s_idx].unsqueeze(0) # anomalous patch
-            m_star = self.vae.list_mem[index_task][min_idx[s_idx]].unsqueeze(0) # closest neighbour
-            w_dist = torch.cdist(m_star, self.vae.list_mem[index_task]) # find knn to m_star pt.1
-            _, nn_idx = torch.topk(w_dist, k=self.vae.n_reweight, largest=False) # pt.2
+            m_star = self.ad_model.list_mem[index_task][min_idx[s_idx]].unsqueeze(0) # closest neighbour
+            w_dist = torch.cdist(m_star, self.ad_model.list_mem[index_task]) # find knn to m_star pt.1
+            _, nn_idx = torch.topk(w_dist, k=self.ad_model.n_reweight, largest=False) # pt.2
             # equation 7 from the paper
-            m_star_knn = torch.linalg.norm(m_test-self.vae.list_mem[index_task][nn_idx[0,1:]], dim=1)
+            m_star_knn = torch.linalg.norm(m_test-self.ad_model.list_mem[index_task][nn_idx[0,1:]], dim=1)
             # Softmax normalization trick as in transformers.
             # As the patch vectors grow larger, their norm might differ a lot.
             # exp(norm) can give infinities.
@@ -167,10 +167,10 @@ class Trainer_patch():
             s_map = min_val.detach().cpu().view(1,*feature_maps[0].shape[-2:])#(1,28,28)
             #print(f"s_map after min_val:{s_map.shape}")
             '''s_map = torch.nn.functional.interpolate(
-                    s_map, size=(self.vae.image_size,self.vae.image_size), mode='bilinear'
+                    s_map, size=(self.ad_model.image_size,self.ad_model.image_size), mode='bilinear'
             )'''
             #print(f"s_map after interpolation:{s_map.shape}")
-            '''s_map = self.vae.blur(s_map)'''
+            '''s_map = self.ad_model.blur(s_map)'''
             #print(f"s_map after blur:{s_map.shape}")
             heatmap = s_map
             heatmaps = torch.cat((heatmaps, heatmap), dim=0) if heatmaps != None else heatmap
@@ -188,7 +188,7 @@ class Trainer_patch():
 
         self.strategy.run.log({f"Task_average_precision/T{index_training}": precision/dataSize})
 
-        heatmaps = upsample(heatmaps, size=self.vae.image_size, mode='bilinear')
+        heatmaps = upsample(heatmaps, size=self.ad_model.image_size, mode='bilinear')
         heatmaps = gaussian_smooth(heatmaps, sigma=4)
     
         #gt_mask = np.asarray(gt_mask_list)

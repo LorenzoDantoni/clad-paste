@@ -24,23 +24,23 @@ from src.utilities.utility_plot import*
 class Trainer_cfa():
     def __init__(self,strategy, cfa):
         self.strategy = strategy
-        #self.vae = cfa.to(strategy.device)
-        self.vae = cfa
+        #self.ad_model = cfa.to(strategy.device)
+        self.ad_model = cfa
         self.lr = self.strategy.lr
         self.b1 = self.strategy.b1
         self.b2 = self.strategy.b2
         self.weight_decay = self.strategy.weight_decay
-        self.optimizer = torch.optim.AdamW(self.vae.parameters(), lr=1e-3, weight_decay= 5e-4, amsgrad = True)
-        #self.optimizer = torch.optim.Adam(self.vae.parameters(), lr=self.lr, betas=(self.b1, self.b2), weight_decay= 5e-4)
+        self.optimizer = torch.optim.AdamW(self.ad_model.parameters(), lr=1e-3, weight_decay= 5e-4, amsgrad = True)
+        #self.optimizer = torch.optim.Adam(self.ad_model.parameters(), lr=self.lr, betas=(self.b1, self.b2), weight_decay= 5e-4)
         #weight_decay= self.weight_decay
     
     def train_epoch(self,dataloader):
-        self.vae.training = True
+        self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = [] 
         self.strategy.model.eval()
-        self.vae.train()
+        self.ad_model.train()
 
         batch_index = 0
         for batch in tqdm(dataloader):
@@ -52,8 +52,8 @@ class Trainer_cfa():
 
             self.optimizer.zero_grad()
 
-            x = x.to(self.vae.device)
-            loss, score = self.vae(x, self.strategy.model)
+            x = x.to(self.ad_model.device)
+            loss, score = self.ad_model(x, self.strategy.model)
 
             loss.backward()
             self.optimizer.step()
@@ -77,7 +77,7 @@ class Trainer_cfa():
 
     def test_epoch(self,dataloader):
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, heatmaps, lista_labels = [], None, []
         test_imgs, gt_list, gt_mask_list = [], [], []
@@ -86,19 +86,19 @@ class Trainer_cfa():
         min_score_value = -10000000
 
         self.strategy.model.eval()
-        self.vae.eval()
+        self.ad_model.eval()
         for batch in tqdm(dataloader):
             masks = []
             data,indices,anomaly_info= batch[0],batch[2],batch[3]
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
             if self.strategy.parameters['architecture']=='cfa':
-                loss, anomaly_maps = self.vae(data, self.strategy.model)
+                loss, anomaly_maps = self.ad_model(data, self.strategy.model)
             else:
                 with torch.no_grad():
 
-                    loss, anomaly_maps = self.vae(data, self.strategy.model)#added
+                    loss, anomaly_maps = self.ad_model(data, self.strategy.model)#added
 
             heatmap = anomaly_maps.cpu().detach()
             heatmap = torch.mean(heatmap, dim=1) 
@@ -144,27 +144,27 @@ class Trainer_cfa():
         dataset = self.strategy.complete_test_dataset
         test_task_index = self.strategy.current_test_task_index
         index_training = self.strategy.index_training
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, heatmaps, lista_labels = [], None, []
         test_imgs, gt_list, gt_mask_list = [], [], []
 
         self.strategy.model.eval()
-        self.vae.eval()
+        self.ad_model.eval()
         for batch in tqdm(dataloader):
             masks = []
             data,indices,anomaly_info= batch[0],batch[2],batch[3]
             #class_ids = batch[1]
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
             if self.strategy.parameters['architecture']=='cfa':
-                loss, anomaly_maps = self.vae(data, self.strategy.model)
+                loss, anomaly_maps = self.ad_model(data, self.strategy.model)
             else:
                 with torch.no_grad():
 
-                    loss, anomaly_maps = self.vae(data, self.strategy.model)#added
+                    loss, anomaly_maps = self.ad_model(data, self.strategy.model)#added
 
             heatmap = anomaly_maps.cpu().detach()
             heatmap = torch.mean(heatmap, dim=1) 

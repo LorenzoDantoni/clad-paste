@@ -3,20 +3,21 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from src.models.storig_add.timm import FeatureExtractor
-from src.models.storig_add.anomaly_map import AnomalyMapGenerator
+from src.models.stfpm_add.timm import FeatureExtractor
+from src.models.stfpm_add.anomaly_map import AnomalyMapGenerator
 
 
 
-def create_storig(strategy, img_shape, parameters):
+def create_stfpm(strategy, img_shape, parameters):
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-    st = STorig(device)
+    st = STFPM(device)
     st = st.to(device)
     return st, device  
 
 
-class STorig(nn.Module):
-    """STFPM: Student-Teacher Feature Pyramid Matching for Unsupervised Anomaly Detection.
+class STFPM(nn.Module):
+    """
+    STFPM: Student-Teacher Feature Pyramid Matching for Unsupervised Anomaly Detection.
 
     Args:
         layers (list[str]): Layers used for feature extraction
@@ -48,7 +49,8 @@ class STorig(nn.Module):
         self.anomaly_map_generator = AnomalyMapGenerator(image_size=image_size)
 
     def forward(self, images: Tensor) -> Tensor | dict[str, Tensor] | tuple[dict[str, Tensor]]:
-        """Forward-pass images into the network.
+        """
+        Forward-pass images into the network.
 
         During the training mode the model extracts the features from the teacher and student networks.
         During the evaluation mode, it returns the predicted anomaly map.

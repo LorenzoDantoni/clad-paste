@@ -13,11 +13,11 @@ from src.utilities.utility_ad import standardize_scores, test_anomaly_maps, test
 #from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy, produce_visual_debug
 from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy
 
-#Added for storig
+#Added for stfpm
 from src.models.cfa_add.metric import *
 from src.models.cfa_add.visualizer import * 
-from src.models.storig import *
-from src.models.storig_add.loss import *
+from adcl_paper.src.models.stfpm import *
+from src.models.stfpm_add.loss import *
 from torch import Tensor
 
 
@@ -36,7 +36,8 @@ from src.utilities.utility_plot import*
 #from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 
-"""Training Step of STFPM.
+"""
+Training Step of STFPM.
 
 For each batch, teacher and student and teacher features are extracted from the CNN.
 
@@ -48,16 +49,16 @@ Returns:
 """
    
 
-class Trainer_storig():
+class Trainer_STFPM():
     def __init__(self,strategy, st):
         self.strategy = strategy
         self.device = strategy.device
-        self.vae = st
+        self.ad_model = st
         self.batch_size = strategy.parameters['batch_size']
         self.lr = self.strategy.lr
 
         self.optimizer = torch.optim.SGD(
-            params=self.vae.student.parameters(),
+            params=self.ad_model.student.parameters(),
             lr=0.4, 
             momentum=0.9,
             weight_decay=0.0001,
@@ -67,12 +68,12 @@ class Trainer_storig():
     
 
     def train_epoch(self,dataloader):
-        self.vae.training = True
+        self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.train()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.train()
 
         batch_index = 0
 
@@ -85,9 +86,9 @@ class Trainer_storig():
             lista_indices.extend(indices.detach().cpu().numpy())
 
             self.optimizer.zero_grad()
-            x = x.to(self.vae.device)
+            x = x.to(self.ad_model.device)
 
-            teacher_features, student_features = self.vae.forward(x)
+            teacher_features, student_features = self.ad_model.forward(x)
             loss = self.loss_fcn(teacher_features, student_features)
             loss.backward()
             self.optimizer.step()
@@ -96,15 +97,15 @@ class Trainer_storig():
             batch_index += 1
 
         '''
-        torch.save(self.vae.teacher, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.teacher, os.path.join(self.strategy.train_output_dir,
                                             'teacher_tmp.pth'))
-        torch.save(self.vae.student, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.student, os.path.join(self.strategy.train_output_dir,
                                             'student_tmp.pth'))
         '''
         
         if self.strategy.parameters['early_stopping'] == True:
             run_name1 = 'model_student'+str(self.strategy.current_epoch)
-            torch.save(self.vae.student.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
+            torch.save(self.ad_model.student.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
         
         
         l_fastflow_loss /= dataSize
@@ -119,24 +120,24 @@ class Trainer_storig():
 
     def test_epoch(self,dataloader):
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
-        self.vae.teacher.eval()
-        self.vae.student.eval()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.eval()
 
         for batch in tqdm(dataloader):
             masks = []
             data,indices,anomaly_info= batch[0],batch[2],batch[3]
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.vae.forward(data)
+                anomaly_maps = self.ad_model.forward(data)
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             #print(f"Heatmap size: {heatmap.shape}")
@@ -184,23 +185,23 @@ class Trainer_storig():
         dataset = self.strategy.complete_test_dataset
         test_task_index = self.strategy.current_test_task_index
         index_training = self.strategy.index_training
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
 
-        self.vae.teacher.eval()
-        self.vae.student.eval()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.eval()
 
         for batch in tqdm(dataloader):
             masks = []
             data,indices,anomaly_info= batch[0],batch[2],batch[3]
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.vae.forward(data)
+                anomaly_maps = self.ad_model.forward(data)
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             #print(f"Heatmap size: {heatmap.shape}")
@@ -238,6 +239,7 @@ class Trainer_storig():
         
         if self.strategy.produce_visual_debug:
             mode = self.strategy.mode 
+            #TODO chiedere
             produce_visual_debug(self.strategy.parameters,mode, lista_indices, lista_labels, scores, losses, gt_list,gt_mask_list, test_imgs, test_task_index, self.strategy.run, self.strategy.labels_map[test_task_index], index_training,self.strategy.path_logs,test_imgs, threshold)        
             
         metrics_epoch = diz_metriche

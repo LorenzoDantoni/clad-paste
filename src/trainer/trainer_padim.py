@@ -24,9 +24,9 @@ from src.utilities.utility_plot import*
 class Trainer_padim():
     def __init__(self,strategy, padim):
         self.strategy = strategy
-        self.vae = padim
+        self.ad_model = padim
         self.d_reduced = strategy.parameters["d_reduced"]
-        self.device = self.vae.device
+        self.device = self.ad_model.device
         self.MEAN = []
         self.COV = []
         self.r_indices = None
@@ -45,9 +45,9 @@ class Trainer_padim():
             lista_indices.extend(indices.detach().cpu().numpy())
             
             
-            x = x.to(self.vae.device)
+            x = x.to(self.ad_model.device)
             self.strategy.model.eval()
-            feature_maps = self.vae(x, self.strategy.model)
+            feature_maps = self.ad_model(x, self.strategy.model)
 
             '''
             # only for debugging
@@ -58,10 +58,10 @@ class Trainer_padim():
             '''
             batch_index += 1
 
-            if self.vae.resize is None:
+            if self.ad_model.resize is None:
                 largest_fmap_size = feature_maps[0].shape[-2:]
-                self.vae.resize = torch.nn.AdaptiveAvgPool2d(largest_fmap_size)
-            resized_maps = [self.vae.resize(fmap) for fmap in feature_maps]
+                self.ad_model.resize = torch.nn.AdaptiveAvgPool2d(largest_fmap_size)
+            resized_maps = [self.ad_model.resize(fmap) for fmap in feature_maps]
             patch = torch.cat(resized_maps, 1)
             #print(f'Batch patch size: {patch.shape}')
             patch_lib.append(patch)
@@ -88,7 +88,7 @@ class Trainer_padim():
 
         # cov calc
         E = torch.einsum('abkl,bckl->ackl',x_.permute([1,0,2,3]),x_) * 1/(patch_lib.shape[0]-1)
-        E += self.vae.epsilon * torch.eye(self.d_reduced).unsqueeze(-1).unsqueeze(-1)
+        E += self.ad_model.epsilon * torch.eye(self.d_reduced).unsqueeze(-1).unsqueeze(-1)
         E_inv = torch.linalg.inv(E.permute([2,3,0,1])).permute([2,3,0,1])#(rd_550,rd_550,56,56)
 
 
@@ -112,8 +112,8 @@ class Trainer_padim():
                 self.COV[0] = (self.COV[0]*self.strategy.index_training+E_inv)/(self.strategy.index_training+1)
                 
         else:
-            #self.MEAN.append(means_reduced.detach().to(self.vae.device))
-            #self.COV.append(E_inv.detach().to(self.vae.device))
+            #self.MEAN.append(means_reduced.detach().to(self.ad_model.device))
+            #self.COV.append(E_inv.detach().to(self.ad_model.device))
             self.MEAN.append(means_reduced.detach())
             self.COV.append(E_inv.detach())
             
@@ -148,15 +148,15 @@ class Trainer_padim():
             class_ids = batch[1]
             lista_indices.extend(batch[2].detach().cpu().numpy()) 
             test_imgs.extend(data.detach().numpy())
-            data = data.to(self.vae.device)
+            data = data.to(self.ad_model.device)
 
             self.strategy.model.eval()
-            feature_maps = self.vae(data,self.strategy.model)
-            resized_maps = [self.vae.resize(fmap) for fmap in feature_maps]
+            feature_maps = self.ad_model(data,self.strategy.model)
+            resized_maps = [self.ad_model.resize(fmap) for fmap in feature_maps]
             patch = torch.cat(resized_maps, 1)
             
             #test patch (1,num_channels,...)
-            #patch = patch.detach().to(self.vae.device)
+            #patch = patch.detach().to(self.ad_model.device)
             
             #set minimum (for loop)
             minimum = 10000000000
@@ -210,7 +210,7 @@ class Trainer_padim():
         self.strategy.run.log({f"Task_average_precision/T{index_training}": precision/dataSize})
         #self.strategy.run.log({f"Task_average_precision": precision/dataSize})
 
-        heatmaps = upsample(heatmaps, size=self.vae.image_size, mode='bilinear')
+        heatmaps = upsample(heatmaps, size=self.ad_model.image_size, mode='bilinear')
         heatmaps = gaussian_smooth(heatmaps, sigma=4)
     
         #gt_mask = np.asarray(gt_mask_list)

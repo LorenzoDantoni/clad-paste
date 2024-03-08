@@ -42,16 +42,16 @@ class FastflowLoss(nn.Module):
 class Trainer_fastflow():
     def __init__(self,strategy, fastflow):
         self.strategy = strategy
-        self.vae = fastflow
+        self.ad_model = fastflow
         self.lr = self.strategy.lr
         self.b1 = self.strategy.b1
         self.b2 = self.strategy.b2
         self.weight_decay = self.strategy.weight_decay
-        self.optimizer = torch.optim.Adam(self.vae.parameters(), lr=self.lr, betas=(self.b1, self.b2), weight_decay= self.weight_decay)
+        self.optimizer = torch.optim.Adam(self.ad_model.parameters(), lr=self.lr, betas=(self.b1, self.b2), weight_decay= self.weight_decay)
         self.loss = FastflowLoss()
     
     def train_epoch(self,dataloader):
-        self.vae.training = True
+        self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = []
@@ -66,7 +66,7 @@ class Trainer_fastflow():
             x = x.to(self.device)
             if self.strategy.img_size==384:
                 x = F.interpolate(x,size=(384,384),mode="bicubic")
-            hidden_variables, jacobians = self.vae(x)
+            hidden_variables, jacobians = self.ad_model(x)
             loss = self.loss(hidden_variables, jacobians)
 
             self.optimizer.zero_grad()
@@ -92,7 +92,7 @@ class Trainer_fastflow():
 
     def test_epoch(self,dataloader):
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
@@ -108,7 +108,7 @@ class Trainer_fastflow():
             with torch.no_grad():
                 if self.strategy.img_size==384:
                     data = F.interpolate(data,size=(384,384),mode="bicubic")
-                anomaly_maps = self.vae(data)
+                anomaly_maps = self.ad_model(data)
                 if self.strategy.img_size==384:
                     anomaly_maps = F.interpolate(anomaly_maps,size=(256,256),mode="bicubic")
                 max_score_value = max( anomaly_maps.max(), max_score_value)
@@ -144,7 +144,7 @@ class Trainer_fastflow():
         dataset = self.strategy.complete_test_dataset
         test_task_index = self.strategy.current_test_task_index
         index_training = self.strategy.index_training
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
@@ -157,7 +157,7 @@ class Trainer_fastflow():
             with torch.no_grad():
                 if self.strategy.img_size==384:
                     data = F.interpolate(data,size=(384,384),mode="bicubic")
-                anomaly_maps = self.vae(data)
+                anomaly_maps = self.ad_model(data)
                 if self.strategy.img_size==384:
                     anomaly_maps = F.interpolate(anomaly_maps,size=(256,256),mode="bicubic")
 

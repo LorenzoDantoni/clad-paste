@@ -29,13 +29,13 @@ class Trainer_st():
     def __init__(self,strategy, st):
         self.strategy = strategy
         self.device = strategy.device
-        self.vae = st
+        self.ad_model = st
         self.batch_size = strategy.parameters['batch_size']
         self.lr = self.strategy.lr
         self.b1 = self.strategy.b1
         self.b2 = self.strategy.b2
         self.weight_decay = self.strategy.weight_decay
-        self.optimizer = torch.optim.Adam(self.vae.student.parameters(),lr=1e-4, weight_decay=1e-5)
+        self.optimizer = torch.optim.Adam(self.ad_model.student.parameters(),lr=1e-4, weight_decay=1e-5)
         
         self.pretrain_penalty = True
         if strategy.parameters['imagenet_train_path'] == 'None':
@@ -64,21 +64,21 @@ class Trainer_st():
     
 
     def train_epoch(self,dataloader):
-        self.vae.training = True
+        self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.train()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.train()
 
         batch_index = 0
         tqdm_obj = tqdm(range(dataSize))
 
         #model parameters number
-        model_parameters = sum(p.numel() for p in self.vae.teacher.parameters())
+        model_parameters = sum(p.numel() for p in self.ad_model.teacher.parameters())
         print(f"Model Parameters teacher: {model_parameters}")
         
-        model_parameters = sum(p.numel() for p in self.vae.student.parameters())
+        model_parameters = sum(p.numel() for p in self.ad_model.student.parameters())
         print(f"Model Parameters student: {model_parameters}")
 
         for _, batch, image_penalty in zip(tqdm_obj, dataloader, self.penalty_loader_infinite):
@@ -92,10 +92,10 @@ class Trainer_st():
 
             self.optimizer.zero_grad()
         
-            image_st = image_st.to(self.vae.device)
-            image_penalty = image_penalty.to(self.vae.device)
+            image_st = image_st.to(self.ad_model.device)
+            image_penalty = image_penalty.to(self.ad_model.device)
 
-            loss = self.vae(image_st, image_penalty)
+            loss = self.ad_model(image_st, image_penalty)
 
             loss.backward()
             self.optimizer.step()
@@ -111,15 +111,15 @@ class Trainer_st():
             batch_index += 1
 
         '''
-        torch.save(self.vae.teacher, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.teacher, os.path.join(self.strategy.train_output_dir,
                                             'teacher_tmp.pth'))
-        torch.save(self.vae.student, os.path.join(self.strategy.train_output_dir,
+        torch.save(self.ad_model.student, os.path.join(self.strategy.train_output_dir,
                                             'student_tmp.pth'))
         '''
         
         if self.strategy.parameters['early_stopping'] == True:
             run_name1 = 'model_student'+str(self.strategy.current_epoch)
-            torch.save(self.vae.student.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
+            torch.save(self.ad_model.student.state_dict(), os.path.join(self.strategy.checkpoints, run_name1 + ".pckl"))
         
         
         l_fastflow_loss /= dataSize
@@ -134,20 +134,20 @@ class Trainer_st():
 
     def test_epoch(self,dataloader):
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.eval()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.eval()
 
         q_st_start, q_st_end = map_normalization(
-        validation_loader=dataloader, teacher=self.vae.teacher,
-        student=self.vae.student, 
-        teacher_mean=self.vae.teacher_mean, teacher_std=self.vae.teacher_std,
+        validation_loader=dataloader, teacher=self.ad_model.teacher,
+        student=self.ad_model.student, 
+        teacher_mean=self.ad_model.teacher_mean, teacher_std=self.ad_model.teacher_std,
         desc='Intermediate map normalization')
 
         self.q_st_start, self.q_st_end,  = q_st_start, q_st_end
@@ -160,13 +160,13 @@ class Trainer_st():
             ###
             image_st = batch[0][:,0]
             #print(image_st.shape)
-            image_st = image_st.to(self.vae.device)
+            image_st = image_st.to(self.ad_model.device)
             
             with torch.no_grad():
                 map_st = predict(
-                    image=image_st, teacher=self.vae.teacher, student=self.vae.student,
-                    teacher_mean=self.vae.teacher_mean,
-                    teacher_std=self.vae.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end
+                    image=image_st, teacher=self.ad_model.teacher, student=self.ad_model.student,
+                    teacher_mean=self.ad_model.teacher_mean,
+                    teacher_std=self.ad_model.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end
                     )
                 map_st = torch.nn.functional.pad(map_st, (4, 4, 4, 4))
                 map_st = torch.nn.functional.interpolate(
@@ -203,21 +203,21 @@ class Trainer_st():
 
     def evaluate_data(self, dataloader,test_loss_function=None):  
         dataset = self.strategy.complete_test_dataset
-        self.vae.training = False
+        self.ad_model.training = False
         lista_indices = []
         losses, l_anomaly_maps, lista_labels = [], [], []
         test_imgs, gt_list, gt_mask_list = [], [], []
         batch_index = 0
 
         lista_indices = [] 
-        self.vae.teacher.eval()
-        self.vae.student.eval()
+        self.ad_model.teacher.eval()
+        self.ad_model.student.eval()
 
 
         q_st_start, q_st_end = map_normalization(
-        validation_loader=dataloader, teacher=self.vae.teacher,
-        student=self.vae.student, 
-        teacher_mean=self.vae.teacher_mean, teacher_std=self.vae.teacher_std,
+        validation_loader=dataloader, teacher=self.ad_model.teacher,
+        student=self.ad_model.student, 
+        teacher_mean=self.ad_model.teacher_mean, teacher_std=self.ad_model.teacher_std,
         desc='Intermediate map normalization')
 
 
@@ -231,13 +231,13 @@ class Trainer_st():
             image_st = batch[0][:,0]
             #CHANGED for plot predict
             test_imgs.extend(image_st.detach().numpy())
-            image_st = image_st.to(self.vae.device)
+            image_st = image_st.to(self.ad_model.device)
 
             with torch.no_grad():
                 map_st = predict(
-                    image=image_st, teacher=self.vae.teacher, student=self.vae.student,
-                    teacher_mean=self.vae.teacher_mean,
-                    teacher_std=self.vae.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end
+                    image=image_st, teacher=self.ad_model.teacher, student=self.ad_model.student,
+                    teacher_mean=self.ad_model.teacher_mean,
+                    teacher_std=self.ad_model.teacher_std, q_st_start=q_st_start, q_st_end=q_st_end
                     )
                 map_st = torch.nn.functional.pad(map_st, (4, 4, 4, 4))
                 map_st = torch.nn.functional.interpolate(
@@ -333,7 +333,7 @@ def teacher_normalization(teacher, train_loader):
     mean_outputs = []
     for batch in tqdm(train_loader, desc='Computing mean of features'):
         if torch.cuda.is_available():
-            train_image = batch[0][:,0].device(teacher.device)
+            train_image = batch[0][:,0].cuda()
         teacher_output = teacher(train_image)
         mean_output = torch.mean(teacher_output, dim=[0, 2, 3])
         mean_outputs.append(mean_output)
