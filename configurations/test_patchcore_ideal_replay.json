@@ -1,6 +1,6 @@
 {
-    "architecture":"patch",
-    "trainer":"patch",
+    "architecture":"patchcore",
+    "trainer":"patchcore",
     "mem_size":300,
 
 

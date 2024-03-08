@@ -7,7 +7,7 @@ import torch.nn as nn
 #import torch.nn.functional as F
 #from torchvision.transforms import InterpolationMode
 
-def create_eff(strategy, img_shape, parameters):
+def create_efficientad(strategy, img_shape, parameters):
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     eff = EfficientAD(parameters['model_size'], parameters['out_channels'], parameters['weights'], device)
     eff = eff.to(device)

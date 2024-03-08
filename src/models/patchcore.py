@@ -85,7 +85,7 @@ def get_coreset_idx_randomp(
     return torch.stack(coreset_idx)
 
 
-def create_patch(strategy, img_shape, parameters):
+def create_patchcore(strategy, img_shape, parameters):
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     patch = PatchCore(device, parameters['f_coreset'], parameters['backbone_name'], parameters['coreset_eps'])
     return patch, device  

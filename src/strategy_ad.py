@@ -35,16 +35,16 @@ from src.trainer.trainer_cfa import *
 from src.models.cfa_add.cnn.resnet import wide_resnet50_2 as wrn50_2
 
 #Subsequently added for EfficientAD
-from src.models.eff import *
-from src.trainer.trainer_eff import *
+from adcl_paper.src.models.efficientad import *
+from adcl_paper.src.trainer.trainer_efficientad import *
 from src.models.st import *
 from src.trainer.trainer_st import *
 import os
 from tqdm import tqdm
 
 #Added
-from src.models.patch import *
-from src.trainer.trainer_patch import *
+from adcl_paper.src.models.patchcore import *
+from adcl_paper.src.trainer.trainer_patchcore import *
 import timm
 
 #Added
@@ -133,8 +133,8 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
 
         #Added
     elif architecture == "patch":
-        patch, device = create_patch(strategy,input_size, parameters)
-        trainer = Trainer_patch(strategy,patch)   
+        patch, device = create_patchcore(strategy,input_size, parameters)
+        trainer = Trainer_patchcore(strategy,patch)   
 
         #Added
     elif architecture == "padim":
@@ -157,8 +157,8 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
             st, device = create_st(strategy,input_size, parameters)
             trainer = Trainer_st(strategy,st)  
         else:
-            eff, device = create_eff(strategy,input_size, parameters)
-            trainer = Trainer_eff(strategy,eff)  
+            eff, device = create_efficientad(strategy,input_size, parameters)
+            trainer = Trainer_efficientad(strategy,eff)  
 
     elif architecture=="pix2pix":
         trainer_param = parameters["trainer"]

@@ -1,6 +1,6 @@
 {
-    "architecture":"eff",
-    "trainer":"eff",
+    "architecture":"efficientad",
+    "trainer":"efficientad",
     "mem_size":40,
 
 

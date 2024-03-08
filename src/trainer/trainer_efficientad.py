@@ -14,7 +14,7 @@ from src.utilities.utility_ad import standardize_scores, test_anomaly_maps, test
 from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy
 
 
-from src.models.eff import *
+from adcl_paper.src.models.efficientad import *
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
@@ -24,7 +24,7 @@ import sys
 #Added
 from src.utilities.utility_plot import*
 
-class Trainer_eff():
+class Trainer_efficientad():
     def __init__(self,strategy, eff):
         self.strategy = strategy
         self.device = strategy.device

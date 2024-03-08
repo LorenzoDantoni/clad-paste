@@ -1,6 +1,6 @@
 {
-    "architecture":"storig",
-    "trainer":"storig",
+    "architecture":"stfpm",
+    "trainer":"stfpm",
     "mem_size":300,
 
 
