@@ -8,7 +8,6 @@ import torchvision
 from torchvision import transforms
 from torch.utils.data import DataLoader,Dataset,Subset
 from torchvision import transforms
-#from torchvision.io import read_video, write_jpeg
 
 from PIL import Image
 import PIL
@@ -18,15 +17,20 @@ import imgaug.augmenters as iaa
 import cv2
 from src.models.draem_add.perlin import rand_perlin_2d_np
 import glob
+from argparse import Namespace
 
 normalazition_parameters_mvtec = {"mean":(0.485, 0.456, 0.406), "std":(0.229, 0.224, 0.225)}
-# normalazition_parameters_mvtec = {"mean":(0.5, 0.5, 0.5), "std":(0.5, 0.5, 0.5)}
 
 transform_ae = transforms.RandomChoice([
     transforms.ColorJitter(brightness=0.2),
     transforms.ColorJitter(contrast=0.2),
     transforms.ColorJitter(saturation=0.2)
 ])
+
+normalize_transforms = {  "mvtec": transforms.Normalize(**normalazition_parameters_mvtec)   }
+MVTEC_CLASS_NAMES = ['hazelnut', 'bottle', 'cable','capsule', 'metal_nut', 'pill', 'toothbrush', 'transistor', 'zipper', 'screw']
+labels_datasets = { "mvtec":MVTEC_CLASS_NAMES  }
+
 
 '''transformation of the images'''
 def create_transform_img(img_size, crp_size):
@@ -42,51 +46,30 @@ def create_transform_img(img_size, crp_size):
     transform.append(transforms.Normalize(**normalazition_parameters_mvtec))
     return transforms.Compose(transform)    
 
+def filter_dataset(dataset, task_id, batch_size): 
+    """
+    This methods extract from the entire dataset in input the data corresponding to specific task(s)
 
-def filter_dataset(dataset, task_id, batch_size): #out of the entire dataset extracts(loads) data corresponding to specific task(s)
+    Args:
+        dataset (torch.Dataset) : dataset to be considered
+        task_id (int) : id of the task
+        batch_size (int) : batch size
+    
+    Return:
+        class_subset (torch.Subset) : subset of the dataset
+        class_dataloader (torch.DataLoader) : dataloader over the subset
+    """
     if np.asarray(task_id).ndim==0:
         class_idx = np.where((dataset.targets==task_id))[0]
     else:
         class_idx = np.where( np.isin(dataset.targets,task_id) )[0]
+
     class_subset = Subset(dataset, class_idx)
 
     class_loader = DataLoader(class_subset, shuffle=True, batch_size=batch_size, drop_last=True)
     #class_loader = DataLoader(class_subset, shuffle=True, batch_size=batch_size)
 
     return class_subset,class_loader
-
-
-class ContinualLearningBenchmark:#returns task_stream = (train, test dataset) in specified order by the array task_order
-    def __init__(self,complete_train_dataset, complete_test_dataset, num_tasks, task_order):
-        self.complete_train_dataset = complete_train_dataset
-        self.complete_test_dataset = complete_test_dataset
-        self.num_tasks = num_tasks
-        self.task_order = task_order
-
-        if num_tasks!=len(task_order):
-            print("Attenzione ! Numero di tasks!=task_order length")
-
-    def produce_task_stream(self):
-        lista_datasets_train = []
-        lista_datasets_test = []
-        for task_id in self.task_order:
-            dataset_train_task,_ = filter_dataset(self.complete_train_dataset, task_id, 1)
-            dataset_test_task,_ = filter_dataset(self.complete_test_dataset, task_id, 1)
-            lista_datasets_train.append(dataset_train_task)
-            lista_datasets_test.append(dataset_test_task)
-
-        train_stream = lista_datasets_train
-        test_stream  = lista_datasets_test
-        task_stream = train_stream,test_stream
-
-        return task_stream
-
-
-normalize_transforms = {  "mvtec": transforms.Normalize(**normalazition_parameters_mvtec)   }
-#MVTEC_CLASS_NAMES = ['bottle', 'cable', 'capsule',  'hazelnut', 'metal_nut', 'pill', 'screw', 'toothbrush', 'transistor', 'zipper']
-MVTEC_CLASS_NAMES = ['hazelnut', 'bottle', 'cable','capsule', 'metal_nut', 'pill', 'toothbrush', 'transistor', 'zipper', 'screw']
-labels_datasets = { "mvtec":MVTEC_CLASS_NAMES  }
-
 
 def create_transform_x(opt,crp_size): #prepares images as inputs for backbone
     transform = []
@@ -103,7 +86,6 @@ def create_transform_x(opt,crp_size): #prepares images as inputs for backbone
     transform.append(transforms.Normalize(**normalazition_parameters_mvtec))
     return transforms.Compose(transform)    
 
-
 def create_transform_x_with_rotation(opt,crp_size,rotation_degree,fill=0):#the same as above, but with rotation
     transform = []
     transform.append(transforms.Resize((crp_size, crp_size), interpolation=2))
@@ -116,8 +98,20 @@ def create_transform_x_with_rotation(opt,crp_size,rotation_degree,fill=0):#the s
     transform.append(transforms.Normalize(**normalazition_parameters_mvtec))
     return transforms.Compose(transform)
 
+def load_dataset(parameters,type_dataset,normalize=True):
+    """
+    Function that returns the dataset split into training and test
 
-def load_dataset(parameters,type_dataset,download=True,normalize=True):#type_dataset: "mvtec" or "shanghai" etc. #returns entire dataset_train and dataset_test 
+    Args:
+        parameters (dict) : json with all the execution parameters
+        type_dataset (str) : name of the dataset ('mvtec' or 'shangai' for the moment only mvtec is present)
+        normalize (bool) : boolean that states if we must perform normalization on the data
+
+    Return:
+        dataset_train (MVTecDataset) : training MVTec Dataset
+        dataset_test (MVTecDataset) : test MVTec Dataset
+    """
+    
     print(f"Type of Dataset: {type_dataset}")
 
     dataset_name = type_dataset.lower()
@@ -130,7 +124,6 @@ def load_dataset(parameters,type_dataset,download=True,normalize=True):#type_dat
     print(f"filepath dataset: {filepath}")#not relevant
 
     if type_dataset=="mvtec":
-        from argparse import Namespace
         opt = utility_logging.from_parameters_to_opt(parameters)  
         apply_rotation=parameters.get("apply_rotation",False)
         opt.apply_rotation=apply_rotation
@@ -226,7 +219,7 @@ class MVTecDataset(Dataset):
                 iaa.pillike.Autocontrast(),
                 iaa.pillike.Equalize(),
                 iaa.Affine(rotate=(-45, 45))
-                ]
+            ]
 
             self.rot = iaa.Sequential([iaa.Affine(rotate=(-90, 90))])
 
@@ -590,3 +583,29 @@ class MemoryDataset(Dataset):
             return x, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
 
         
+class ContinualLearningBenchmark:#returns task_stream = (train, test dataset) in specified order by the array task_order
+    def __init__(self,complete_train_dataset, complete_test_dataset, num_tasks, task_order):
+        self.complete_train_dataset = complete_train_dataset
+        self.complete_test_dataset = complete_test_dataset
+        self.num_tasks = num_tasks
+        self.task_order = task_order
+
+        if num_tasks!=len(task_order):
+            print("Attention! Number of tasks!=task_order length")
+
+    def produce_task_stream(self):
+        datasets_train_list = []
+        datasets_test_list = []
+
+        for task_id in self.task_order:
+            dataset_train_task,_ = filter_dataset(self.complete_train_dataset, task_id, 1)
+            dataset_test_task,_ = filter_dataset(self.complete_test_dataset, task_id, 1)
+            datasets_train_list.append(dataset_train_task)
+            datasets_test_list.append(dataset_test_task)
+
+        train_stream = datasets_train_list
+        test_stream  = datasets_test_list
+        
+        task_stream = train_stream,test_stream
+
+        return task_stream

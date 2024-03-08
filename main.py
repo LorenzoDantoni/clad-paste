@@ -58,7 +58,7 @@ utility_logging.create_paths([path_logs])
 
 filename = os.path.basename(parameters_path)
 dst = os.path.join(path_logs,filename).replace('\\','/')#/logs/{project_name}/{experiment_name}_{date_time}/test_fast_flow_standard.json
-shutil.copyfile(parameters_path, dst)#copy parameters (specific for the model) to Neptune
+shutil.copyfile(parameters_path, dst)                   #copy parameters (specific for the model) to Neptune
 
 # Load Dataset
 channels,dataset_name,num_tasks,task_order = parameters["channels"],parameters["dataset_name"],parameters["num_tasks"],parameters["task_order"]
@@ -76,7 +76,7 @@ else:
 print(f"input_size: {input_size}")
 
 original_stdout = sys.stdout # Save a reference to the original standard output
-filepath = os.path.join(path_logs, 'model_info.txt').replace('\\','/')#cretes model_info.txt file within the created project on Neptune
+filepath = os.path.join(path_logs, 'model_info.txt').replace('\\','/') #cretes model_info.txt file within the created project on Neptune
 
 with open( filepath, 'w') as f:
     sys.stdout = f #change output default destination

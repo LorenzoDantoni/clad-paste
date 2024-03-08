@@ -326,9 +326,7 @@ def load_and_split_dataset(parameters,dataset_name,num_tasks,task_order):
 
 
 def create_new_labels_map(labels_map,task_order,num_tasks):
-    """
-    
-    """
+
 
     labels_map_new = {}
     for index_task in range(num_tasks):
