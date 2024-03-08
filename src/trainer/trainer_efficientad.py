@@ -10,7 +10,6 @@ from src.loss_functions import *
 from src.utilities.utility_images import *
 from src.utilities.utility_ad import standardize_scores, test_anomaly_maps, test_epoch_anomaly_maps
 
-#from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy, produce_visual_debug
 from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy
 
 

@@ -9,7 +9,6 @@ from src.loss_functions import *
 from src.utilities.utility_images import *
 from src.utilities.utility_ad import standardize_scores, test_anomaly_maps, test_epoch_anomaly_maps
 
-#from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy, produce_visual_debug
 from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy
 
 
@@ -228,11 +227,6 @@ class Trainer_padim():
         if self.strategy.index_training == 9:
             plot_predict(self, lista_labels, scores, gt_mask_list, lista_indices, threshold, test_imgs)
         
-        if self.strategy.produce_visual_debug:
-            mode = self.strategy.mode 
-            produce_visual_debug(self.strategy.parameters,mode, lista_indices, lista_labels, scores, losses, gt_list,gt_mask_list, test_imgs, test_task_index, self.strategy.run, self.strategy.labels_map[test_task_index], index_training,self.strategy.path_logs,test_imgs, threshold)        
-
-
         del scores, heatmaps
 
         metrics_epoch = diz_metriche
