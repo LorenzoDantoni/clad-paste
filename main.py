@@ -26,12 +26,12 @@ from torch.utils.data import DataLoader
 warnings.filterwarnings("ignore", category=UserWarning)
 
 parser = argparse.ArgumentParser(description="Parser to take filepaths")
-parser.add_argument("--parameters_path", type=str, nargs="?", action = 'store', help="parameters path", default="test_cfa_ideal_replay.json" )       #loads specific parameters from .json file for specific model for ADCL
-parser.add_argument("--credentials_path", type=str, nargs="?", action = 'store', help="credentials path", default="credentials.json")                #specific for Neptune
-parser.add_argument("--default_path", type=str, nargs="?", action = 'store', help="default parameters path", default="common_param.json")            #common params
-parser.add_argument("--seed", type=int, nargs="?", action = 'store', help="seed", default=random.randint(1,10000))                                                         #seed
+parser.add_argument("--parameters_path", type=str, nargs="?", action = 'store', help="parameters path", default="test_cfa_ideal_replay.json" )       #loads specific parameters from .json file for specific model
+parser.add_argument("--credentials_path", type=str, nargs="?", action = 'store', help="credentials path", default="credentials.json")                #load the credentials for wandb logging
+parser.add_argument("--default_path", type=str, nargs="?", action = 'store', help="default parameters path", default="common_param.json")            #common parameters for the training
+parser.add_argument("--seed", type=int, nargs="?", action = 'store', help="seed", default=random.randint(1,10000))                                   #set seed
 
-#load paths to the parameters (model_specific, credentials for Neptune, common params)
+#load paths to the parameters variable (model_specific, credentials for Neptune, common params)
 args = parser.parse_args()
 path = 'configurations'
 parameters_path = os.path.join(path,args.parameters_path).replace('\\','/')
@@ -41,12 +41,11 @@ print(f"credentials_path: {credentials_path}")
 default_path = os.path.join(path,args.default_path).replace('\\','/')
 print(f"default_path: {default_path}")
 seed = args.seed
+print(f"seed: {seed}")
 
 #seed = 43
 
-print(f"seed: {seed}")
-
-# Define run,parameters,path_logs
+#Get wandb run object,parameters and available device
 run, parameters, device = init_execute(credentials_path, default_path, parameters_path, seed)
 project_name = run.project
 experiment_name = run.id
@@ -57,7 +56,6 @@ path_logs = os.path.join(f"logs/{project_name}/{experiment_name}_{date_time}").r
 print(f"path_logs: {path_logs}")
 utility_logging.create_paths([path_logs]) 
 
-
 filename = os.path.basename(parameters_path)
 dst = os.path.join(path_logs,filename).replace('\\','/')#/logs/{project_name}/{experiment_name}_{date_time}/test_fast_flow_standard.json
 shutil.copyfile(parameters_path, dst)#copy parameters (specific for the model) to Neptune
@@ -67,7 +65,7 @@ channels,dataset_name,num_tasks,task_order = parameters["channels"],parameters["
 complete_train_dataset, complete_test_dataset,train_stream,test_stream = load_and_split_dataset(parameters,dataset_name,num_tasks,task_order)#returns train and test dataset in default task order, and then in specified order for CL
 #output values: MVTecDataset (it contains list of x,y...), MVTecDataset(same), list(of Subsets), list(of Subsets)
 
-labels_map = create_new_labels_map(labels_datasets[dataset_name], task_order, num_tasks)#put strings of classes' names in desired task order
+labels_map = create_new_labels_map(labels_datasets[dataset_name], task_order, num_tasks) #put strings of classes' names in desired task order
 print(f"labels_map: {labels_map}")
 
 # Create Strategy

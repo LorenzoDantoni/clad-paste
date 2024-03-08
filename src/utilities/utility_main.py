@@ -195,7 +195,7 @@ def init_strategy_variables(strategy, complete_train_dataset,complete_test_datas
     strategy.elapsed_time = elapsed_time
 
 
-def init_execute(credentials_path, default_path,parameters_path, seed, create_run=True):
+def init_execute(credentials_path, default_path,parameters_path, seed, create_run=True) -> tuple:
     """
     This method initialize the execution, set the parameters and create the wandb run object    
 
@@ -326,6 +326,10 @@ def load_and_split_dataset(parameters,dataset_name,num_tasks,task_order):
 
 
 def create_new_labels_map(labels_map,task_order,num_tasks):
+    """
+    
+    """
+
     labels_map_new = {}
     for index_task in range(num_tasks):
         task_id = task_order[index_task]
