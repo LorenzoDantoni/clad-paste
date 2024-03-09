@@ -27,21 +27,24 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 parser = argparse.ArgumentParser(description="Parser to take filepaths")
 parser.add_argument("--parameters_path", type=str, nargs="?", action = 'store', help="parameters path", default="test_cfa_ideal_replay.json" )       #loads specific parameters from .json file for specific model
-parser.add_argument("--credentials_path", type=str, nargs="?", action = 'store', help="credentials path", default="credentials.json")                #load the credentials for wandb logging
-parser.add_argument("--default_path", type=str, nargs="?", action = 'store', help="default parameters path", default="common_param.json")            #common parameters for the training
-parser.add_argument("--seed", type=int, nargs="?", action = 'store', help="seed", default=random.randint(1,10000))                                   #set seed
+
+#parser.add_argument("--credentials_path", type=str, nargs="?", action = 'store', help="credentials path", default="credentials.json")                #load the credentials for wandb logging
+#parser.add_argument("--default_path", type=str, nargs="?", action = 'store', help="default parameters path", default="common_param.json")            #common parameters for the training
+
+parser.add_argument("--seed", type=int, nargs="?", action = 'store', help="seed", default=random.randint(1,10000))                                    #set seed
 
 #load paths to the parameters variable (model_specific, credentials for Neptune, common params)
 args = parser.parse_args()
 path = 'configurations'
 parameters_path = os.path.join(path,args.parameters_path).replace('\\','/')
-print(f"parameters_path: {parameters_path}")
-credentials_path = os.path.join(path,args.credentials_path).replace('\\','/')
-print(f"credentials_path: {credentials_path}")
-default_path = os.path.join(path,args.default_path).replace('\\','/')
-print(f"default_path: {default_path}")
+credentials_path = os.path.join(path,"credentials.json").replace('\\','/')
+default_path = os.path.join(path,"common_param.json").replace('\\','/')
 seed = args.seed
+
 print(f"seed: {seed}")
+print(f"parametes_path: {parameters_path}")
+print(f"credentials_path: {credentials_path}")
+print(f"default_path: {default_path}")
 
 #seed = 43
 

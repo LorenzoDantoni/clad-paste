@@ -35,6 +35,9 @@ def create_memory(strategy, task_order, dir_experiment_path, mem_size, current_t
     elif type_strategy=="cumulative" or type_strategy=="naive" or type_strategy=="multi_task" or type_strategy=="single_model":#without repetition
         return MemoryNaive(strategy, task_order, dir_experiment_path, mem_size, current_task)          
 
+    elif type_strategy=="cl":        
+        return MemoryNaive(strategy, task_order, dir_experiment_path, mem_size, current_task)          
+
     elif type_strategy=="latent_replay":
         return MemoryLatentReplay(strategy, task_order, dir_experiment_path, mem_size, current_task)
 
@@ -321,6 +324,7 @@ class MemoryReplay(MemoryFromMemorized):
     '''
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
        super().__init__(strategy, task_order, dir_experiment_path, mem_size, current_task)
+
     def memory_update(self,dataset_task, task_id):
         num_samples_per_task = self.mem_size//self.num_tasks
         num_samples_per_task = min(num_samples_per_task, len(dataset_task))
@@ -416,8 +420,6 @@ class MemoryLatentReplay(MemoryFromGenerated):
 
             filepath_img = os.path.join(path_generated,f"{sample_id}.png").replace('\\','/')
             save_img(x_hat, filepath_img)  
-
-
 
 class MemoryGenerativeReplay(MemoryFromGenerated):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
@@ -518,8 +520,6 @@ class MemoryCompressedDegenerativeReplay(MemoryFromGenerated):
 
             filepath_img = os.path.join(path_generated,f"{sample_id}.png").replace('\\','/')
             save_img(x_hat, filepath_img)    
-
-
 
 class MemoryCompressedReplay(MemoryFromGenerated):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):

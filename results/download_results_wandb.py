@@ -83,10 +83,7 @@ def return_summaries_dataframes(api: wandb.Api, credentials: json) -> pd.DataFra
                 data[metric.split("/")[-1]].append(round(history[metric].values[-1],2))
 
                 if strategy == "multi_task" and metric == "Summary/evaluation_ad/f1": 
-                    if model == "fastflow": 
-                        last_task_perf_multi = round(history[metric].values[-1],2)
-                    else:
-                        last_task_perf_multi = valori_tesisti_multitask[model]
+                    last_task_perf_multi = round(history[metric].values[-1],2)
 
                 if metric == "Summary/evaluation_ad/f1": 
                     if (strategy.isdigit() or strategy == "cl") and last_task_perf_multi: 

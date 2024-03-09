@@ -69,7 +69,7 @@ import time
 
 class EarlyStopping():
     """
-    Early stopping to stop the training when the loss does not improve after
+    Early stopping to stop the training when the loss doe   s not improve after
     certain epochs.
 
     Attributes:
