@@ -45,10 +45,6 @@ After setting up the environment and after downloading the datasets you can star
 
 and by specifyng the correct configuration json file path and the seed for the training.
 
-For example for training CFA with a replay strategy and a replay memory size of 300 you have to set in the <code>./configurations/test_cfa_ideal_replay.json</code> file the "sample_strategy" field to "replay" and the "mem_size" field to 300. Then you can launch the training with: 
-
-<code>python main.py --parameters_path absolute/path/to/configurations/test_patchcore_ideal_replay.json --seed 43 </code>
-
 All the metrics will be recorded on the Wandb under space under the indicated project_name.
 
 ## Training Details
@@ -57,6 +53,10 @@ The models STFPM, CFA, DRAEM, FastFlow and EfficientAD are not memory-bank based
 Patchcore and Padim are memory-bank based so the continual learning strategy adopted is not replay. In order to train them in a CL strategy you have to set the flag "cl" to True in their json files under the directory <code>./configurations/models/</code> and in their configuration file you have to specify the "cl" strategy in the "sample_strategy" field. For PatchCore you can also set the "mem_size_cl" field in the json file in the <code>./configurations/models/</code> directory, which defines the size of the memory bank. 
 
 ##  Training Examples
+
+For example for training CFA with a replay strategy and a replay memory size of 300 you have to set in the <code>./configurations/test_cfa_ideal_replay.json</code> file the "sample_strategy" field to "replay" and the "mem_size" field to 300. Then you can launch the training with: 
+
+<code>python main.py --parameters_path absolute/path/to/configurations/test_patchcore_ideal_replay.json --seed 43 </code>
 
 ## Citation
 

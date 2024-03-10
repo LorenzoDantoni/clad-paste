@@ -94,7 +94,7 @@ class Trainer_padim():
         
         if self.strategy.parameters["cl"]:
             
-            if self.strategy.index_training == 0 and self.strategy.parameters["sample_strategy"] in ["naive", "single_model", "multi_task", "replay"]:
+            if self.strategy.index_training == 0 and self.strategy.parameters["sample_strategy"] in ["cl", "naive", "single_model", "multi_task", "replay"]:
                 #print(f"Means_reduced shape each: {means_reduced.shape}")
                 #self.MEAN.append(means_reduced.detach().cpu())
                 self.MEAN.append(means_reduced.detach())
