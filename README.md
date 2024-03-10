@@ -24,4 +24,4 @@ Patchcore and Padim are memory-bank based so the continual learning strategy ado
 
 and by specifyng the correct configuration json file and the seed for the training.
 
-The results will be recorded on Wandb under the indicated project_name, while image results will be stored in the folder output that is automatically created when code is run
+All the metrics will be recorded on the Wandb under space under the indicated project_name.
