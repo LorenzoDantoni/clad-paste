@@ -10,7 +10,7 @@
     "save_embedding":false,
 
     "new_memory":true,
-    "sample_strategy":"single_model",  
+    "sample_strategy":"cl",  
 
     "device_id":0,
     "num_epochs":1,

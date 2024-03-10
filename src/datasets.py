@@ -104,7 +104,7 @@ def load_dataset(parameters,type_dataset,normalize=True):
 
     Args:
         parameters (dict) : json with all the execution parameters
-        type_dataset (str) : name of the dataset ('mvtec' or 'shangai' for the moment only mvtec is present)
+        type_dataset (str) : name of the dataset ('mvtec' or 'shangai' for the moment only mvtec is supported)
         normalize (bool) : boolean that states if we must perform normalization on the data
 
     Return:
@@ -334,7 +334,7 @@ class MVTecDataset(Dataset):
             mask = self.transform_mask(mask)
         '''  
         
-        if self.architecture == 'eff':  
+        if self.architecture == 'efficientad':  
             x = torch.cat([torch.unsqueeze(transform_img(x),dim=0), torch.unsqueeze(transform_img(transform_ae(x)),dim=0)])
             return x, y, idx, anomaly_info, filepath
         elif self.architecture == 'draem':
@@ -568,7 +568,7 @@ class MemoryDataset(Dataset):
         crp_size = self.strategy.parameters['crp_size']          
         transform_img = create_transform_img(img_size, crp_size)
 
-        if self.strategy.parameters['architecture'] == 'eff':  
+        if self.strategy.parameters['architecture'] == 'efficientad':  
             x = torch.cat([torch.unsqueeze(transform_img(img),dim=0), torch.unsqueeze(transform_img(transform_ae(img)),dim=0)])
             return x, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
         elif self.strategy.parameters['architecture'] == 'draem':  

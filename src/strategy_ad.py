@@ -69,7 +69,7 @@ import time
 
 class EarlyStopping():
     """
-    Early stopping to stop the training when the loss doe   s not improve after
+    Early stopping to stop the training when the loss does not improve after
     certain epochs.
 
     Attributes:
@@ -115,6 +115,8 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
     else: 
         architecture = "vae"
 
+    print(architecture)
+
     if architecture=="vae":
         vae, device = create_vae_model(strategy,input_size, parameters)
         latent_dim = parameters['latent_dim']
@@ -132,7 +134,7 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
         trainer = Trainer_cfa(strategy,cfa)   
 
         #Added
-    elif architecture == "patch":
+    elif architecture == "patchcore":
         patch, device = create_patchcore(strategy,input_size, parameters)
         trainer = Trainer_patchcore(strategy,patch)   
 
@@ -152,7 +154,7 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
         trainer = Trainer_STFPM(strategy,storig)   
 
         #Added
-    elif architecture == "eff":
+    elif architecture == "efficientad":
         if parameters["st"] == True:
             st, device = create_st(strategy,input_size, parameters)
             trainer = Trainer_st(strategy,st)  
@@ -180,33 +182,33 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
 
 def reset_trainer(strategy):
     if strategy.parameters['architecture'] == 'cfa':
-        strategy.trainer.vae.C = None
-        strategy.trainer.vae.D = None
-        strategy.trainer.vae.Descriptor = None
+        strategy.trainer.ad_model.C = None
+        strategy.trainer.ad_model.D = None
+        strategy.trainer.ad_model.Descriptor = None
         strategy.trainer.optimizer = None
-        strategy.trainer.vae.r = None
-        strategy.trainer.vae = None
+        strategy.trainer.ad_model.r = None
+        strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
 
-    if strategy.parameters['architecture'] == 'eff':
-        strategy.trainer.vae.teacher = None
-        strategy.trainer.vae.student = None
+    if strategy.parameters['architecture'] == 'efficientad':
+        strategy.trainer.ad_model.teacher = None
+        strategy.trainer.ad_model.student = None
         if strategy.parameters['st'] == False:
-            strategy.trainer.vae.autoencoder = None
+            strategy.trainer.ad_model.autoencoder = None
         strategy.trainer.optimizer = None
         strategy.trainer.scheduler = None
-        strategy.trainer.vae.teacher_mean = None
-        strategy.trainer.vae.teacher_std = None
-        strategy.trainer.vae = None
+        strategy.trainer.ad_model.teacher_mean = None
+        strategy.trainer.ad_model.teacher_std = None
+        strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
 
     if strategy.parameters['architecture'] == 'patch':
-        for i in range (len(strategy.trainer.vae.list_mem)):
-            strategy.trainer.vae.list_mem[i] = None
+        for i in range (len(strategy.trainer.ad_model.list_mem)):
+            strategy.trainer.ad_model.list_mem[i] = None
         #strategy.trainer.vae.feature_extractor = None
-        strategy.trainer.vae = None
+        strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -216,30 +218,30 @@ def reset_trainer(strategy):
             strategy.trainer.MEAN[i] = None
             strategy.trainer.COV[i] = None
             strategy.trainer.r_indices = None
-        strategy.trainer.vae = None
+        strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
 
     if strategy.parameters['architecture'] == 'draem':
-        strategy.trainer.vae.model = None
-        strategy.trainer.vae.model_seg = None
+        strategy.trainer.ad_model.model = None
+        strategy.trainer.ad_model.model_seg = None
         strategy.trainer.optimizer = None
         #added
         strategy.trainer.scheduler = None
         
-        strategy.trainer.vae.loss_l2 = None
-        strategy.trainer.vae.loss_ssim = None
-        strategy.trainer.vae.loss_focal = None
-        strategy.trainer.vae = None
+        strategy.trainer.ad_model.loss_l2 = None
+        strategy.trainer.ad_model.loss_ssim = None
+        strategy.trainer.ad_model.loss_focal = None
+        strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
         print("Trainer is reset")
 
-    if strategy.parameters['architecture'] == 'storig':
-        strategy.trainer.vae.teacher = None
-        strategy.trainer.vae.student = None
+    if strategy.parameters['architecture'] == 'stfpm':
+        strategy.trainer.ad_model.teacher = None
+        strategy.trainer.ad_model.student = None
         strategy.trainer.optimizer = None
-        strategy.trainer.vae = None
+        strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -270,7 +272,7 @@ def create_strategy(parameters,run,labels_map,device,path_logs,input_size):
         strategy.model = strategy.model.to(strategy.device)
         strategy.model.eval()
 
-    if strategy.parameters['architecture'] == 'patch':
+    if strategy.parameters['architecture'] == 'patchcore':
         strategy.model = timm.create_model("wide_resnet50_2",out_indices=(2,3),features_only=True,pretrained=True)
         for param in strategy.model.parameters():
             param.requires_grad = False
@@ -348,7 +350,7 @@ class Strategy_CL_AD:
         self.current_test_dataset = current_test_dataset
 
         #if self.parameters['architecture'] == 'eff':
-        if self.index_training == 9 or self.parameters['architecture'] in ['eff','storig']:
+        if self.index_training == 9 or self.parameters['architecture'] in ['efficientad','storig']:
             self.train_output_dir = os.path.join(self.parameters["output_dir"], 'trainings',
                                         MVTEC_CLASS_NAMES[self.index_training]).replace('\\','/')
             self.test_output_dir = os.path.join(self.parameters["output_dir"], 'anomaly_maps',
@@ -416,7 +418,7 @@ class Strategy_CL_AD:
             current_train_data_loader = DataLoader(current_train_dataset , batch_size=batch_size, pin_memory      =          True,
                                     shuffle         =          True,
                                     drop_last       =          True)
-        if self.parameters["architecture"] in ["patch", "padim", "draem"]:
+        if self.parameters["architecture"] in ["patchcore", "padim", "draem"]:
             current_test_data_loader = DataLoader(current_test_dataset , batch_size = 1, pin_memory      =          True)
         else:
             current_test_data_loader = DataLoader(current_test_dataset , batch_size=batch_size, pin_memory      =          True)
@@ -428,10 +430,10 @@ class Strategy_CL_AD:
         self.current_train_data_loader = current_train_data_loader
         self.current_test_data_loader = current_test_data_loader
         
-        if self.parameters["architecture"] == "eff":
-            print("Device teacher: " + str(self.trainer.vae.device))
-            self.trainer.vae.teacher.eval()
-            self.trainer.vae.teacher_mean, self.trainer.vae.teacher_std = teacher_normalization(self.trainer.vae.teacher, current_train_data_loader)
+        if self.parameters["architecture"] == "efficientad":
+            print("Device teacher: " + str(self.trainer.ad_model.device))
+            self.trainer.ad_model.teacher.eval()
+            self.trainer.ad_model.teacher_mean, self.trainer.ad_model.teacher_std = teacher_normalization(self.trainer.ad_model.teacher, current_train_data_loader)
 
         index_training, train_task_id, task_label,labels_map,task_order,num_tasks,run,path_logs = self.return_strategy_parameters()
 
@@ -439,12 +441,12 @@ class Strategy_CL_AD:
         if self.lr_scheduler:
             print("Lr scheduler used")
             if self.parameters["architecture"] == "cfa":
-                self.trainer.optimizer  = torch.optim.AdamW(params        = self.trainer.vae.parameters(), 
+                self.trainer.optimizer  = torch.optim.AdamW(params        = self.trainer.ad_model.parameters(), 
                                     lr            = self.lr,
                                     weight_decay  = 5e-4,
                                     amsgrad       = True )
             else:
-                self.trainer.optimizer = torch.optim.Adam(self.trainer.vae.parameters(), lr=self.lr, betas=(self.b1, self.b2))
+                self.trainer.optimizer = torch.optim.Adam(self.trainer.ad_model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
             scheduler = ReduceLROnPlateau(self.trainer.optimizer, mode='min', patience=3, min_lr=1e-6, factor=0.5)
 
         # Early Stopping
@@ -454,7 +456,7 @@ class Strategy_CL_AD:
         
 
         if self.parameters["architecture"] == "cfa":
-            self.trainer.vae._update_centroid(current_train_data_loader,self.model)
+            self.trainer.ad_model._update_centroid(current_train_data_loader,self.model)
 
         #added    
         self.early_stop = False
@@ -483,7 +485,7 @@ class Strategy_CL_AD:
             add_elapsed_time = end_time - start_time
             self.elapsed_time = self.elapsed_time+add_elapsed_time
             # TEST EPOCH
-            if self.parameters["architecture"] not in ["patch", "padim"]:
+            if self.parameters["architecture"] not in ["patchcore", "padim"]:
                 if eval==True and self.current_epoch%n_critic_eval==0:
                     self.mode = "test"
                     metrics_epoch,other_data_epoch = self.trainer.test_epoch(current_test_data_loader)#self.trainer.test_epoch!
@@ -512,31 +514,31 @@ class Strategy_CL_AD:
         anomaly_detection_task,anomaly_detection_task_with_metrics,test_only_seen_tasks,num_tasks_to_examine = give_ad_parameters(self.parameters,index_training)
         
         #loading in case of early stopping EFF
-        if self.early_stop == True and self.parameters['architecture'] == "eff" and self.parameters['st'] == False:
+        if self.early_stop == True and self.parameters['architecture'] == "efficientad" and self.parameters['st'] == False:
             run_name1 = 'model_student'+str(self.best_epoch)
             run_name2 = 'model_autoencoder'+str(self.best_epoch)
-            #self.trainer.vae.model.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl"), map_location='cuda:0'))
-            self.trainer.vae.student.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl")))
-            #self.trainer.vae.model_seg.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name2 + ".pckl"), map_location='cuda:0'))
-            self.trainer.vae.autoencoder.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name2 + ".pckl")))
+            #self.trainer.ad_model.model.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl"), map_location='cuda:0'))
+            self.trainer.ad_model.student.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl")))
+            #self.trainer.ad_model.model_seg.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name2 + ".pckl"), map_location='cuda:0'))
+            self.trainer.ad_model.autoencoder.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name2 + ".pckl")))
 
-            self.trainer.vae.student.eval()
-            self.trainer.vae.autoencoder.eval()
+            self.trainer.ad_model.student.eval()
+            self.trainer.ad_model.autoencoder.eval()
             
         #loading in case of early stopping ST 
-        if self.early_stop == True and self.parameters['architecture'] == "eff" and self.parameters['st'] == True:
+        if self.early_stop == True and self.parameters['architecture'] == "efficientad" and self.parameters['st'] == True:
             run_name1 = 'model_student'+str(self.best_epoch)
-            #self.trainer.vae.model.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl"), map_location='cuda:0'))
-            self.trainer.vae.student.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl")))
+            #self.trainer.ad_model.model.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl"), map_location='cuda:0'))
+            self.trainer.ad_model.student.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl")))
 
-            self.trainer.vae.student.eval()
+            self.trainer.ad_model.student.eval()
 
         if self.early_stop == True and self.parameters['architecture'] == "storig":
             run_name1 = 'model_student'+str(self.best_epoch)
-            #self.trainer.vae.model.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl"), map_location='cuda:0'))
-            self.trainer.vae.student.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl")))
+            #self.trainer.ad_model.model.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl"), map_location='cuda:0'))
+            self.trainer.ad_model.student.load_state_dict(torch.load(os.path.join(self.checkpoints, run_name1 + ".pckl")))
 
-            self.trainer.vae.student.eval()
+            self.trainer.ad_model.student.eval()
 
 
         diz_test,other_data,lista_metriche  = {}, {}, {}
@@ -554,7 +556,7 @@ class Strategy_CL_AD:
 
             diz_test[test_task_index], other_data[test_task_index] = {}, {}
             test_dataset = test_stream[test_task_index]
-            if architecture_name == "patch" or architecture_name == "padim" or architecture_name == "draem" or architecture_name == "eff":
+            if architecture_name == "patchcore" or architecture_name == "padim" or architecture_name == "draem" or architecture_name == "efficientad":
                 test_data_loader = DataLoader(test_dataset , batch_size = 1, pin_memory = True)
             else:
                 test_data_loader = DataLoader(test_dataset , batch_size=batch_size, pin_memory = True)
@@ -562,7 +564,7 @@ class Strategy_CL_AD:
             self.mode = "evaluate_data"
             if anomaly_detection_task and anomaly_detection_task_with_metrics:
                 #addde "cfa"
-                if architecture_name not in ["fastflow", "cfa", "eff", "patch", "padim", "draem","storig"] and trainer_name!="pix2pix_inpaint" and trainer_name!="classification":
+                if architecture_name not in ["fastflow", "cfa", "efficientad", "patchcore", "padim", "draem","storig"] and trainer_name!="pix2pix_inpaint" and trainer_name!="classification":
                     print("reconstruct_epoch_with_evaluation_ad")
                     diz = reconstruct_epoch_with_evaluation_ad(self, self.parameters, test_data_loader, self.complete_test_dataset,class_name,self.index_training,test_task_index,self.run,self.path_logs)
                     metrics_epoch, other_data_epoch = diz, {}

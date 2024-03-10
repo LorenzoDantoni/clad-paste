@@ -28,6 +28,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 parser = argparse.ArgumentParser(description="Parser to take filepaths")
 parser.add_argument("--parameters_path", type=str, nargs="?", action = 'store', help="parameters path", default="test_cfa_ideal_replay.json" )       #loads specific parameters from .json file for specific model
 
+#ONLY FOR DEBUG
 #parser.add_argument("--credentials_path", type=str, nargs="?", action = 'store', help="credentials path", default="credentials.json")                #load the credentials for wandb logging
 #parser.add_argument("--default_path", type=str, nargs="?", action = 'store', help="default parameters path", default="common_param.json")            #common parameters for the training
 

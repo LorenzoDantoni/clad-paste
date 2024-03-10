@@ -61,16 +61,16 @@ def save_img_draem(img, filepath):
     img.save(filepath) 
 
 def save_model(strategy, architecture, path_logs, index_training):
-        model = strategy.trainer.vae
-        save_dir = os.path.join(path_logs, "models").replace('\\','/')
-        print(f"Save model: {save_dir}")
-        os.makedirs(save_dir,exist_ok=True)
-        if "pix2pix" not in architecture:
-            #filepath = os.path.join(save_dir, f"T{index_training}_model.pt").replace('\\','/')
-            filepath = os.path.join(save_dir, f"T_model.pt").replace('\\','/')
-            torch.save(model.state_dict(), filepath)
-        elif "pix2pix" in architecture:
-            save_pix2pix_model(model,save_dir,index_training)
+    model = strategy.trainer.ad_model
+    save_dir = os.path.join(path_logs, "models").replace('\\','/')
+    print(f"Save model: {save_dir}")
+    os.makedirs(save_dir,exist_ok=True)
+    if "pix2pix" not in architecture:
+        #filepath = os.path.join(save_dir, f"T{index_training}_model.pt").replace('\\','/')
+        filepath = os.path.join(save_dir, f"T_model.pt").replace('\\','/')
+        torch.save(model.state_dict(), filepath)
+    elif "pix2pix" in architecture:
+        save_pix2pix_model(model,save_dir,index_training)
                 
 
 def save_pix2pix_model(model,save_dir,index_training,suffix=""):

@@ -238,7 +238,7 @@ def init_execute(credentials_path, default_path,parameters_path, seed, create_ru
     new_parameters.update(parameters_specific)
     parameters = new_parameters
 
-    #define the tags
+    #define the tags if not already setted in the json files
     if "tags" not in parameters:
         parameters["tags"] = [parameters["architecture"],parameters["sample_strategy"]]
         if "trainer" in parameters and parameters["trainer"]!="":
@@ -316,7 +316,7 @@ def init_execute(credentials_path, default_path,parameters_path, seed, create_ru
 
 def load_and_split_dataset(parameters,dataset_name,num_tasks,task_order):
     # Load Dataset
-    complete_train_dataset, complete_test_dataset = load_dataset(parameters,type_dataset=dataset_name,download=True)#load train and test dataset in default task order, their type is MVTecDataset
+    complete_train_dataset, complete_test_dataset = load_dataset(parameters,type_dataset=dataset_name)#load train and test dataset in default task order, their type is MVTecDataset
     print(f"complete_train_dataset: {len(complete_train_dataset)}")
     print(f"complete_test_dataset: {len(complete_test_dataset)}")
     # Split Dataset in train_stream and test_stream

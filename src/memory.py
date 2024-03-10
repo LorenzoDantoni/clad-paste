@@ -106,7 +106,7 @@ class Memory():
                 idx = np.random.randint(0, len(self.tasks_memory[task_id]),1)[0]#idx represents the ordinal number of the sample saved for specific task 
                 #which is executed earlier, which means it ranges from 0 to num_saved_samples for that task
                 sample = self.tasks_memory[task_id][idx] #pick up the sample corresponding to task_id of specified idx
-                if self.strategy.parameters['architecture'] == 'eff':
+                if self.strategy.parameters['architecture'] == 'efficientad':
                     batch_old0.append(sample[0].reshape(1,2,3,self.strategy.parameters['crp_size'],self.strategy.parameters['crp_size']))
 
                 elif self.strategy.parameters['architecture'] == 'draem':
@@ -155,7 +155,7 @@ class Memory():
            tuple if task index > 0 and sample_strategy is different from naive
            batch_data otherwise
         '''
-        if self.strategy.index_training>0 and self.strategy.sample_strategy not in ["naive","cumulative","multi_task","single_model"]:
+        if self.strategy.index_training>0 and self.strategy.sample_strategy not in ["cl", "naive","cumulative","multi_task","single_model"]:
             batch_old_samples = self.get_samples_from_memory(memory_batch_size)
 
             if self.strategy.parameters['architecture'] == "draem":
@@ -352,7 +352,7 @@ class MemoryReplay(MemoryFromMemorized):
 
             # Take generated image and save into generated
             sample_id = index_dataset
-            if self.strategy.parameters['architecture'] == 'eff':
+            if self.strategy.parameters['architecture'] == 'efficientad':
                 x = sample[0][0]   
             elif self.strategy.parameters['architecture'] == 'draem':
                 x = sample[0]["image"]#torch.tensor(3,256,256) 
@@ -450,7 +450,7 @@ class MemoryGenerativeReplay(MemoryFromGenerated):
             save_pickle(diz,filepath_diz)    
 
             # Take generated image and save into generated
-            if self.strategy.parameters['architecture'] == 'eff':
+            if self.strategy.parameters['architecture'] == 'efficientad':
                 x = sample[0][0]   
             else:
                 x = sample[0]
