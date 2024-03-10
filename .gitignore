@@ -1,9 +1,6 @@
-anomaly_dataset/
-data/
 logs/
 output/
 wandb/
-tiny-imagenet-200/
 
 *.jpg
 *.png
