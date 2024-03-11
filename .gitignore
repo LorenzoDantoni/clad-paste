@@ -8,6 +8,7 @@ data/
 *.jpg
 *.png
 !f1_pixel_based_results.png
+!final_table.png
 
 *.csv
 
