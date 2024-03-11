@@ -28,5 +28,6 @@
     "normalize_img":true,
     "resize":256,
     "backbone_name": "wide_resnet50_2",
-    "d_reduced": 350    
+    "d_reduced": 350, 
+    "cl": true
 }

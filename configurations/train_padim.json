@@ -24,8 +24,7 @@
 
     "test_only_seen_tasks":false,
     "use_train_as_test":false,
-    "test_all_dataset_together":false,
-    "cl": true
+    "test_all_dataset_together":false
 
 }
 

@@ -22,7 +22,9 @@ The detailed results are reported in the table below:
 
 The entire project has been setup to be easily run in an Anaconda environment. Before running the code, the environment needs to be set by using the <code>adcl.yml</code> file present inside the main directory of the repository. In order to set it up enter the following line in Anaconda Prompt: 
 
-<code> conda env create -f adcl.yml </code>
+```
+conda env create -f adcl.yml
+```
 
 ## Datasets Download
 
@@ -37,11 +39,13 @@ After setting up the environment you need to download and place the datasets in 
 
 After setting up the environment and after downloading the datasets you can start to train the models by setting the CL strategy that you prefer:
 
-1. In the <code>./configurations/</code> folder you can find the files named <code>test_[model_name]_ideal_replay.json</code> where you can set the CL strategy (cl, replay, naive, multi_task, single_model) you want to run (in the "sample_strategy" field) and the replay memory buffer size (in the "mem_size" field).
+1. In the <code>./configurations/</code> folder you can find the files named <code>train_[model_name].json</code> where you can set the CL strategy (cl, replay, naive, multi_task, single_model) you want to run (in the "sample_strategy" field) and the replay memory buffer size (in the "mem_size" field). See the section [Training Details](#training-details) below for more informations about.
 
 2. Execute the training with this command: 
 
-<code>python main.py --parameters_path path_to_the_conf_json_file --seed seed</code>
+```
+python main.py --parameters_path path_to_the_conf_json_file --seed seed
+```
 
 and by specifyng the correct configuration json file path and the seed for the training.
 
@@ -49,14 +53,32 @@ All the metrics will be recorded on the Wandb under space under the indicated pr
 
 ## Training Details
 
-The models STFPM, CFA, DRAEM, FastFlow and EfficientAD are not memory-bank based and thus in order to train them with a replay strategy you have to set in their configurations json files the field "sample_strategy" to "replay" and the field "mem_size" to 300 or 100 or to the quantity that you want. 
+The models STFPM, CFA, DRAEM, FastFlow and EfficientAD are not memory-bank based and thus in order to train them with a replay strategy you have to set in their training configuration json files (<code>./configurations/train_[model].json</code>) the field "sample_strategy" to "replay" and the field "mem_size" to 300 or 100 or to the quantity that you want.
+
+In our project the sample strategies available are:
+* naive (Fine-Tuning)
+* multi_task (Joint-Training)
+* replay
+* single_model 
+* cl (Continual Learning strategy for memory-bank based models, see below)
+
 Patchcore and Padim are memory-bank based so the continual learning strategy adopted is not replay. In order to train them in a CL strategy you have to set the flag "cl" to True in their json files under the directory <code>./configurations/models/</code> and in their configuration file you have to specify the "cl" strategy in the "sample_strategy" field. For PatchCore you can also set the "mem_size_cl" field in the json file in the <code>./configurations/models/</code> directory, which defines the size of the memory bank. 
 
 ##  Training Examples
 
-For example for training CFA with a replay strategy and a replay memory size of 300 you have to set in the <code>./configurations/test_cfa_ideal_replay.json</code> file the "sample_strategy" field to "replay" and the "mem_size" field to 300. Then you can launch the training with: 
+For example for training **CFA** with a replay strategy and a replay memory size of 300 you have to set in the <code>./configurations/train_cfa.json</code> file the "sample_strategy" field to "replay" and the "mem_size" field to 300. Then you can launch the training with: 
 
-<code>python main.py --parameters_path absolute/path/to/configurations/test_patchcore_ideal_replay.json --seed 43 </code>
+```
+python main.py --parameters_path absolute/path/to/configurations/train_cfa.json --seed 43
+```
+
+Same for other models: 
+
+* **DRAEM:** <code>python main.py --parameters_path absolute/path/to/configurations/train_draem.json --seed 43</code>
+* **STFPM:** <code>python main.py --parameters_path absolute/path/to/configurations/train_stfpm.json --seed 43</code>
+* **PatchCore:** <code>python main.py --parameters_path absolute/path/to/configurations/train_patchcore.json --seed 43</code>
+
+
 
 ## Citation
 
