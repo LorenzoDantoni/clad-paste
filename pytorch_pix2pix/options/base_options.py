@@ -3,7 +3,8 @@ import os
 from pytorch_pix2pix.util import util
 import torch
 import pytorch_pix2pix.models
-import pytorch_pix2pix.data
+# TODO: commented since i do not need it
+# import pytorch_pix2pix.data
 
 
 class BaseOptions():

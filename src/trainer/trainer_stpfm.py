@@ -15,7 +15,7 @@ from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy
 #Added for stfpm
 from src.models.cfa_add.metric import *
 from src.models.cfa_add.visualizer import * 
-from adcl_paper.src.models.stfpm import *
+from src.models.stfpm import *
 from src.models.stfpm_add.loss import *
 from torch import Tensor
 

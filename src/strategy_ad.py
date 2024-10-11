@@ -35,16 +35,16 @@ from src.trainer.trainer_cfa import *
 from src.models.cfa_add.cnn.resnet import wide_resnet50_2 as wrn50_2
 
 #Subsequently added for EfficientAD
-from adcl_paper.src.models.efficientad import *
-from adcl_paper.src.trainer.trainer_efficientad import *
+from src.models.efficientad import *
+from src.trainer.trainer_efficientad import *
 from src.models.st import *
 from src.trainer.trainer_st import *
 import os
 from tqdm import tqdm
 
 #Added
-from adcl_paper.src.models.patchcore import *
-from adcl_paper.src.trainer.trainer_patchcore import *
+from src.models.patchcore import *
+from src.trainer.trainer_patchcore import *
 import timm
 
 #Added
@@ -61,8 +61,8 @@ from src.models.draem import *
 from src.trainer.trainer_draem import *
 
 #Added
-from adcl_paper.src.models.stfpm import *
-from adcl_paper.src.trainer.trainer_stpfm import *
+from src.models.stfpm import *
+from src.trainer.trainer_stpfm import *
 
 #ADDED
 import time
@@ -563,8 +563,9 @@ class Strategy_CL_AD:
 
             self.mode = "evaluate_data"
             if anomaly_detection_task and anomaly_detection_task_with_metrics:
-                #addde "cfa"
-                if architecture_name not in ["fastflow", "cfa", "efficientad", "patchcore", "padim", "draem","storig"] and trainer_name!="pix2pix_inpaint" and trainer_name!="classification":
+                #added "cfa"
+                # added "stfpm" since otherwise it does not work
+                if architecture_name not in ["fastflow", "cfa", "efficientad", "patchcore", "padim", "draem","storig", "stfpm"] and trainer_name!="pix2pix_inpaint" and trainer_name!="classification":
                     print("reconstruct_epoch_with_evaluation_ad")
                     diz = reconstruct_epoch_with_evaluation_ad(self, self.parameters, test_data_loader, self.complete_test_dataset,class_name,self.index_training,test_task_index,self.run,self.path_logs)
                     metrics_epoch, other_data_epoch = diz, {}

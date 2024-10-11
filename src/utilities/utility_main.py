@@ -23,7 +23,7 @@ from src.strategy_ad import *
 #from src.models.vae import *
 #from src.trainer.trainer_vae import *
 from src.trainer.trainer_cfa import *
-from adcl_paper.src.trainer.trainer_efficientad import *
+from src.trainer.trainer_efficientad import *
 from src.trainer.trainer_st import *
     
 def set_default_ad_parameters(parameters):

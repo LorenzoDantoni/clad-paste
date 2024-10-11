@@ -16,7 +16,7 @@ from src.utilities.utility_pix2pix import create_summary,create_summary_by_numpy
 from src.models.cfa_add.metric import *
 from src.models.cfa_add.visualizer import * 
 
-from adcl_paper.src.models.patchcore import *
+from src.models.patchcore import *
 
 #Added
 from src.utilities.utility_plot import*
