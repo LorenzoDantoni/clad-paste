@@ -6,6 +6,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import matplotlib.pyplot as plt
 
 from src.metrics import *
+from src.models.stfpm_paste import create_stfpm_paste
 from src.utilities import utility_logging
 from src.datasets import *
 from src.memory import *
@@ -104,7 +105,7 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
     print(f"input_size: {input_size}")
     criterion_type = parameters["criterion_type"]
     print(f"criterion_type: {criterion_type}")
-    loss_function = create_loss_function(parameters,criterion_type,input_size, beta)
+    # loss_function = create_loss_function(parameters,criterion_type,input_size, beta)
 
     from argparse import Namespace
     opt = utility_logging.from_parameters_to_opt(parameters)  
@@ -151,7 +152,11 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
         #Added
     elif architecture == "stfpm":
         storig, device = create_stfpm(strategy,input_size, parameters)
-        trainer = Trainer_STFPM(strategy,storig)   
+        trainer = Trainer_STFPM(strategy,storig)
+
+    elif architecture == "stfpm_stfpm_paste":
+        storig, device = create_stfpm_paste(strategy, input_size, parameters)
+        trainer = Trainer_STFPM_paste(strategy, storig)
 
         #Added
     elif architecture == "efficientad":
@@ -258,7 +263,7 @@ def create_strategy(parameters,run,labels_map,device,path_logs,input_size):
     print(f"input_size: {input_size}")
     criterion_type = parameters["criterion_type"]
     print(f"criterion_type: {criterion_type}")
-    loss_function = create_loss_function(parameters,criterion_type,input_size, beta)
+    # loss_function = create_loss_function(parameters,criterion_type,input_size, beta)
 
     from argparse import Namespace
     opt = utility_logging.from_parameters_to_opt(parameters)    
