@@ -1,8 +1,6 @@
 {
     "architecture":"stfpm_paste",
     "trainer":"stfpm_paste",
-    "mem_size":300,
-
 
     "anomaly_detection_task":true,
     "anomaly_detection_task_with_metrics":true,
@@ -11,19 +9,34 @@
 
     "new_memory":true,
     "sample_strategy":"replay",
+    "mem_size":300,
+
+    "criterion_type":"mse",
+
+    "num_tasks": 1,
+    "task_order":[0],
+
+    "backbone_model_name": "mcunet-in3",
+    "ad_layers": [6, 10, 14],
+    "weights": "IMAGENET1K_V2",
+    "student_bootstrap_layer": 4,
+
+    "img_size":256,
+    "crp_size":256,
 
     "device_id":0,
     "num_epochs":5,
     "batch_size": 8,
-    "early_stopping":true,
-    "img_size":256,
-    "crp_size":256,
     "lr":0.4,
     "beta":1,
+    "weight_decay": 1e-5,
+    "b1": 0.5,
+    "b2": 0.999,
+
+    "early_stopping":true,
     "patience":7,
 
     "test_only_seen_tasks":false,
     "use_train_as_test":false,
     "test_all_dataset_together":false
-
 }

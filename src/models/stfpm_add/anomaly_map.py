@@ -16,7 +16,10 @@ class AnomalyMapGenerator(nn.Module):
 
     def __init__(self, image_size: ListConfig | tuple) -> None:
         super().__init__()
+
+        # TODO: where it is used???
         self.distance = torch.nn.PairwiseDistance(p=2, keepdim=True)
+
         self.image_size = image_size if isinstance(image_size, tuple) else tuple(image_size)
 
     def compute_layer_map(self, teacher_features: Tensor, student_features: Tensor) -> Tensor:
@@ -29,6 +32,7 @@ class AnomalyMapGenerator(nn.Module):
         Returns:
           Anomaly score based on cosine similarity.
         """
+        # default p=2 and dim=1
         norm_teacher_features = F.normalize(teacher_features)
         norm_student_features = F.normalize(student_features)
 

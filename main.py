@@ -146,7 +146,6 @@ for index_training in range(0,num_tasks):#0...9
     # SAVE MODEL
     if index_training==0:
         save_model_main(strategy)#saved on Wandb
-        
 
     # TRAINING
     print(f"\nTraining Task T{index_training}")

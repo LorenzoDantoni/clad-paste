@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from src.metrics import *
 from src.models.stfpm_paste import create_stfpm_paste
+from src.trainer.trainer_stfpm_paste import Trainer_STFPM_paste
 from src.utilities import utility_logging
 from src.datasets import *
 from src.memory import *
@@ -154,9 +155,9 @@ def create_trainer(strategy,parameters,device,input_size,lr,batch_size):
         storig, device = create_stfpm(strategy,input_size, parameters)
         trainer = Trainer_STFPM(strategy,storig)
 
-    elif architecture == "stfpm_stfpm_paste":
-        storig, device = create_stfpm_paste(strategy, input_size, parameters)
-        trainer = Trainer_STFPM_paste(strategy, storig)
+    elif architecture == "stfpm_paste":
+        ad_model, device = create_stfpm_paste(strategy, input_size, parameters)
+        trainer = Trainer_STFPM_paste(strategy, ad_model)
 
         #Added
     elif architecture == "efficientad":
@@ -482,7 +483,7 @@ class Strategy_CL_AD:
             # TRAIN EPOCH
             print(f"current_epoch: {epoch}")
             self.mode = "train"
-            metrics_epoch,other_data_epoch  = self.trainer.train_epoch(current_train_data_loader)#self.trainer.train_epoch!
+            metrics_epoch,other_data_epoch = self.trainer.train_epoch(current_train_data_loader)#self.trainer.train_epoch!
             losses.append(metrics_epoch['loss'])
             self.update_state(self.metrics_train,self.other_data_train,metrics_epoch,other_data_epoch, mode="train")
             #ADDED

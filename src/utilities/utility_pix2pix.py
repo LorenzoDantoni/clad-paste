@@ -5,7 +5,7 @@ from filelock import FileLock
 from PIL import Image
 
 from src.utilities.utility_images import *
-from src.utilities.utility_ad import MSGMS_Score
+# from src.utilities.utility_ad import MSGMS_Score
 from src.datasets import *
 from src.utilities.utility_logging import from_sample_to_dict,save_pickle
 from src.inpaint.gen_mask import gen_mask
@@ -97,6 +97,7 @@ def logging_images(self,batch, index_sample_batch,real_A, real_B, fake_B, datalo
 
 
 def produce_reconstruction_inpaint(trainer,model, complete_dataset, batch, index_sample_batch):
+    from src.utilities.utility_ad import MSGMS_Score
     strategy = trainer.strategy
     msgms_score = MSGMS_Score()
     mse_loss_func = trainer.mse_loss

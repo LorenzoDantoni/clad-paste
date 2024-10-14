@@ -13,7 +13,7 @@ import sys
 import torch
 from sklearn.decomposition import PCA
 from filelock import FileLock
-from src.utilities.utility_images import convert2img
+# from src.utilities.utility_images import convert2img
 
 
 def make_dirs(dir_path):
@@ -47,6 +47,7 @@ def save_pickle(obj, filepath):
     f.close()
 
 def save_img(img, filepath):
+    from src.utilities.utility_images import convert2img
     if isinstance(img, torch.Tensor):
         img = convert2img(img.cpu())
     img = img.astype(np.uint8)
@@ -55,6 +56,7 @@ def save_img(img, filepath):
 
 def save_img_draem(img, filepath):
     if isinstance(img, torch.Tensor):
+        from src.utilities.utility_images import convert2img
         img = convert2img(img.cpu(),gray=False, normalize=False,imtype=np.uint8)
     img = img.astype(np.uint8)
     img = Image.fromarray(img)
