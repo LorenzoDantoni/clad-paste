@@ -20,9 +20,9 @@ class Trainer_STFPM_paste:
 
         self.optimizer = torch.optim.SGD(
             params=self.ad_model.student.parameters(),
-            lr=0.4,
+            lr=self.lr,
             momentum=0.9,
-            weight_decay=1e-4,
+            weight_decay=self.strategy.parameters.get('weight_decay', 1e-4),
         )
 
         self.loss_fcn = STFPMLoss()

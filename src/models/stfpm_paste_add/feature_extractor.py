@@ -1,20 +1,24 @@
 """
-This class represent a feature extractor built on top of a custom backbone. The backbone name is passed as input to the constructor. 
-Based on the model name and the layers indexes it will consider the correct layers for the feature extraction. 
+This class represent a feature extractor built on top of a custom backbone. The backbone name is passed as input to the constructor.
+Based on the model name and the layers indexes it will consider the correct layers for the feature extraction.
 """
 
 from __future__ import annotations
-
+import logging
 import torch
 import torchvision
 from torchvision.models.feature_extraction import create_feature_extractor
-
-# Add the 'project' directory to the Python path
+from torchvision.models import get_model
 
 from extractors.mcunet.mcunet.model_zoo import net_id_list, build_model
 
-#from backbones.micronet.micronet import micronetBB
-#from micromind import PhiNet
+# from src.extractors.mcunet.mcunet.model_zoo import net_id_list, build_model
+# from backbones.micronet.micronet import micronetBB
+
+# try:
+#     from micromind.networks.phinet import PhiNet
+# except ModuleNotFoundError:
+#     logging.error("micromind not found in current environment")
 
 OTHERS_BACKBONES = (
     "mcunet-in3",
@@ -27,7 +31,7 @@ OTHERS_BACKBONES = (
     "phinet_0.8_0.75_8_downsampling",
     "phinet_1.3_0.5_7_downsampling",
     "phinet_0.9_0.5_4_downsampling_deep",
-    "phinet_0.9_0.5_4_downsampling"
+    "phinet_0.9_0.5_4_downsampling",
 )
 
 TORCH_BACKBONES = (
@@ -35,13 +39,21 @@ TORCH_BACKBONES = (
     "resnet18",
     "wide_resnet50_2",
     "efficientnet_b5",
-    "mobilenet_v2"
+    "mobilenet_v2",
 )
 
 
 class CustomFeatureExtractor:
 
-    def __init__(self, model_name: str, layers_idx: list, device: torch.device, frozen: bool = True):
+    def __init__(
+        self,
+        model_name: str,
+        layers_idx: list,
+        device: torch.device,
+        frozen=True,
+        quantized=False,
+        calibration_dataloader=None,
+    ):
         """
         Constructor
 
@@ -52,81 +64,184 @@ class CustomFeatureExtractor:
         """
 
         self.model_name = model_name
+        self.quantized = quantized
         self.layers_idx = layers_idx
         self.device = device
 
-        #¢heck for backbone support
+        # ¢heck for backbone support
         if model_name not in OTHERS_BACKBONES + TORCH_BACKBONES:
-            raise Exception(f"The backbone: {model_name} is not supported for feature extraction")
+            raise NotImplementedError(
+                f"The backbone: {model_name} is not supported for feature extraction"
+            )
 
-        #check for mcunet backbone
-        if "mcunet" in model_name:
-            if model_name in net_id_list:
-                self.model, _, _ = build_model(net_id=model_name, pretrained=True)
+        elif model_name in TORCH_BACKBONES:
 
-                #attach the hook
-            self.attach_hook()
+            self.model = CustomFeatureExtractor.get_feature_extractor(
+                model_name, layers_idx
+            )
 
-        # check for micronet backbone
-        # if "micronet" in model_name:
-        #     self.model = micronetBB(device, torch.load(f"backbones/micronet/weights/{self.model_name}.pth"))
-        #
-        #     #attach the hook
-        #     self.attach_hook()
-        #
-        # # check for phinet backbone
-        # if "phinet" in model_name:
-        #     self.load_phinet()
-        #
-        #     #attach the hook
-        #     self.attach_hook()
+        else:
+            # check for mcunet backbone
+            if "mcunet" in model_name:
+                if model_name in net_id_list:
+                    self.model, _, _ = build_model(
+                        net_id=self.model_name, pretrained=frozen
+                    )
 
-        if model_name in TORCH_BACKBONES:
-            self.model = CustomFeatureExtractor.get_feature_extractor(model_name, layers_idx)
+            # check for micronet backbone
+            elif "micronet" in model_name:
+                if frozen:
+                    self.model = micronetBB(
+                        device,
+                        torch.load(f"backbones/micronet/weights/{self.model_name}.pth"),
+                    )
+                else:
+                    self.model = micronetBB(device)
 
-        #load the model to the device
+            # check for phinet backbone
+            elif "phinet" in model_name:
+
+                self.load_phinet(pretrained=frozen)
+
+                if quantized:
+                    self.load_quantized_phinet(calibration_dataloader)
+
+            if not self.quantized:
+                # trim the model till the last layer
+                self.trim()
+
+            self.attached = False
+
         self.model = self.model.to(self.device)
 
         if frozen:
-            #freeze the model
+            # freeze the model
             self.model.eval()
             for parameter in self.model.parameters():
                 parameter.requires_grad = False
 
-    # def load_phinet(self):
-    #
-    #     """
-    #     This function handles the phinet backbone loading
-    #     """
-    #
-    #     if self.model_name == 'phinet_2.3_0.75_5':
-    #         self.model = PhiNet(input_shape=(3, 224, 224), alpha=2.3, beta=0.75, t_zero=5, include_top=True,
-    #                             num_classes=1000, divisor=8)
-    #         self.model.load_state_dict(torch.load('backbones/phinet/new_phinet_small_71.pth.tar')["state_dict"])
-    #     elif self.model_name == 'phinet_1.2_0.5_6_downsampling':
-    #         self.model = PhiNet(input_shape=(3, 224, 224), num_layers=7, alpha=1.2, beta=0.5, t_zero=6,
-    #                             downsampling_layers=[4, 5, 7], include_top=True, num_classes=1000, divisor=8)
-    #         self.model.load_state_dict(
-    #             torch.load('backbones/phinet/new_phinet_divisor8_v2_downsampl.pth.tar')["state_dict"])
-    #     elif self.model_name == 'phinet_0.8_0.75_8_downsampling':
-    #         self.model = PhiNet(input_shape=(3, 224, 224), num_layers=7, alpha=0.8, beta=0.75, t_zero=8,
-    #                             downsampling_layers=[4, 5, 7], include_top=True, num_classes=1000, divisor=8)
-    #         self.model.load_state_dict(torch.load('backbones/phinet/new_phinet_divisor8_v3.pth.tar')["state_dict"])
-    #     elif self.model_name == 'phinet_1.3_0.5_7_downsampling':
-    #         self.model = PhiNet(input_shape=(3, 224, 224), num_layers=7, alpha=1.3, beta=0.5, t_zero=7,
-    #                             downsampling_layers=[4, 5, 7], include_top=True, num_classes=1000, divisor=8)
-    #         self.model.load_state_dict(torch.load('backbones/phinet/phinet_13057DS.pth.tar')["state_dict"])
-    #     elif self.model_name == 'phinet_0.9_0.5_4_downsampling_deep':
-    #         self.model = PhiNet(input_shape=(3, 224, 224), num_layers=9, alpha=0.9, beta=0.5, t_zero=4,
-    #                             downsampling_layers=[4, 5, 7], include_top=True, num_classes=1000, divisor=8)
-    #         self.model.load_state_dict(torch.load('backbones/phinet/phinet_09054DSDE.pth.tar')["state_dict"])
-    #     elif self.model_name == 'phinet_0.9_0.5_4_downsampling':
-    #         self.model = PhiNet(input_shape=(3, 224, 224), num_layers=7, alpha=0.9, beta=0.5, t_zero=4,
-    #                             downsampling_layers=[4, 5, 7], include_top=True, num_classes=1000, divisor=8)
-    #         self.model.load_state_dict(torch.load('backbones/phinet/phinet_09054DS.pth.tar')["state_dict"])
+    def load_phinet(self, pretrained=True):
+        """
+        This function handles the phinet backbone loading
+        """
+
+        if self.model_name == "phinet_2.3_0.75_5":
+            self.model = PhiNet(
+                input_shape=(3, 224, 224),
+                alpha=2.3,
+                beta=0.75,
+                t_zero=5,
+                include_top=True,
+                num_classes=1000,
+                divisor=8,
+            )
+            if pretrained:
+                self.model.load_state_dict(
+                    torch.load("backbones/phinet/new_phinet_small_71.pth.tar")[
+                        "state_dict"
+                    ]
+                )
+        elif self.model_name == "phinet_1.2_0.5_6_downsampling":
+            self.model = PhiNet(
+                input_shape=(3, 224, 224),
+                num_layers=7,
+                alpha=1.2,
+                beta=0.5,
+                t_zero=6,
+                downsampling_layers=[4, 5, 7],
+                include_top=True,
+                num_classes=1000,
+                divisor=8,
+            )
+            self.model.load_state_dict(
+                torch.load("backbones/phinet/new_phinet_divisor8_v2_downsampl.pt")
+            )
+        elif self.model_name == "phinet_0.8_0.75_8_downsampling":
+            self.model = PhiNet(
+                input_shape=(3, 224, 224),
+                num_layers=7,
+                alpha=0.8,
+                beta=0.75,
+                t_zero=8,
+                downsampling_layers=[4, 5, 7],
+                include_top=True,
+                num_classes=1000,
+                divisor=8,
+            )
+            if pretrained:
+                self.model.load_state_dict(
+                    torch.load("backbones/phinet/new_phinet_divisor8_v3.pth.tar")[
+                        "state_dict"
+                    ]
+                )
+        elif self.model_name == "phinet_1.3_0.5_7_downsampling":
+            self.model = PhiNet(
+                input_shape=(3, 224, 224),
+                num_layers=7,
+                alpha=1.3,
+                beta=0.5,
+                t_zero=7,
+                downsampling_layers=[4, 5, 7],
+                include_top=True,
+                num_classes=1000,
+                divisor=8,
+            )
+            if pretrained:
+                self.model.load_state_dict(
+                    torch.load("backbones/phinet/phinet_13057DS.pth.tar")["state_dict"]
+                )
+        elif self.model_name == "phinet_0.9_0.5_4_downsampling_deep":
+            self.model = PhiNet(
+                input_shape=(3, 224, 224),
+                num_layers=9,
+                alpha=0.9,
+                beta=0.5,
+                t_zero=4,
+                downsampling_layers=[4, 5, 7],
+                include_top=True,
+                num_classes=1000,
+                divisor=8,
+            )
+            if pretrained:
+                self.model.load_state_dict(
+                    torch.load("backbones/phinet/phinet_09054DSDE.pth.tar")[
+                        "state_dict"
+                    ]
+                )
+        elif self.model_name == "phinet_0.9_0.5_4_downsampling":
+            self.model = PhiNet(
+                input_shape=(3, 224, 224),
+                num_layers=7,
+                alpha=0.9,
+                beta=0.5,
+                t_zero=4,
+                downsampling_layers=[4, 5, 7],
+                include_top=True,
+                num_classes=1000,
+                divisor=8,
+            )
+            if pretrained:
+                self.model.load_state_dict(
+                    torch.load("backbones/phinet/phinet_09054DS.pth.tar")["state_dict"]
+                )
+
+    def load_quantized_phinet(self, calibration_dataloader):
+        from micromind.quantize import quantize_pt
+        import os
+
+        save_path = f"backbones/quantized/{self.model_name}/"
+        os.makedirs(save_path, exist_ok=True)
+
+        quantize_pt(
+            self.model,
+            save_path,
+            calibration_loader=calibration_dataloader,
+            test_loader=None,
+            metrics=None,
+        )
 
     @staticmethod
-    def get_feature_extractor(backbone: str, return_nodes):
+    def get_feature_extractor(backbone: str, return_nodes, pretrained=True):
         """Get the feature extractor from the backbone CNN.
 
         Args:
@@ -140,67 +255,55 @@ class CustomFeatureExtractor:
         Returns:
             GraphModule: Feature extractor.
         """
-        model = getattr(torchvision.models, backbone)(pretrained=True)
-        feature_extractor = create_feature_extractor(model=model, return_nodes=return_nodes)
+        model = getattr(torchvision.models, backbone)(pretrained=pretrained)
+        feature_extractor = create_feature_extractor(
+            model=model, return_nodes=return_nodes
+        )
 
         return feature_extractor
 
-    def attach_hook(self, bootstrap_idx=0):
+    def trim(self):
 
+        layers = None
+
+        max_idx = self.layers_idx[-1] + 1
+
+        if "mcunet" in self.model_name:
+            layers = [self.model.first_conv] + list(self.model.blocks)[:max_idx]
+
+            # we must shift by one the layers ids because of the first conv layer
+            self.layers_idx = [idx + 1 for idx in self.layers_idx]
+        elif "micronet" in self.model_name:
+            layers = list(self.model.features)[:max_idx]
+        elif "phinet" in self.model_name:
+            layers = list(self.model._layers)[:max_idx]
+
+        # actually trim the model
+        self.model = torch.nn.Sequential(*layers)
+
+    def attach(self):
         def hook(module, input, output):
             self.features.append(output)
 
-        feature_layers = None
-
-        if "mcunet" in self.model_name:
-            feature_layers = list(self.model.blocks)
-
-        if "micronet" in self.model_name:
-            feature_layers = list(self.model.features)
-
-        if "phinet" in self.model_name:
-            feature_layers = list(self.model._layers)
+        if self.quantized:
+            layers = list(self.model.children())[0]
+        else:
+            layers = list(self.model.children())
 
         for idx in self.layers_idx:
-            assert idx - bootstrap_idx > 0, "Invalid layer index"
-            feature_layers[idx - bootstrap_idx].register_forward_hook(hook)
+            layers[idx].register_forward_hook(hook)
 
     def __call__(self, batch: torch.Tensor) -> list[torch.Tensor]:
-
-        """
-        batch:Tensor [1,3,224,224]
-        Returns:
-        -------
-        lista di feature maps, una per ogni layer specificato nel costruttore
-        """
 
         if self.model_name in TORCH_BACKBONES:
             return list(self.model(batch).values())
 
         else:
+
+            if not self.attached:
+                self.attach()
+                self.attached = True
+
             self.features = []
             self.model(batch.to(self.device))
             return self.features
-
-
-# def test_feature_extractor():
-#     # Choose the backbone and layers to extract features from (e.g., layers of resnet18)
-#     model_name = 'mcunet-in3'
-#     layers_idx = [2, 6, 14]
-#
-#     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#     dummy_input = torch.randn(1, 3, 224, 224)
-#     dummy_input = dummy_input.to(device)
-#
-#     # freeze the backbone by default
-#     feature_extractor = CustomFeatureExtractor(model_name, layers_idx, device)
-#
-#     # Run the dummy input through the extractor and get feature maps
-#     feature_maps = feature_extractor(dummy_input)
-#
-#     # Print the shape of each feature map to verify the output
-#     for i, feature_map in enumerate(feature_maps):
-#         print(f"Feature map {i} from layer {layers_idx[i]} has shape: {feature_map.shape}")
-#
-#
-# test_feature_extractor()

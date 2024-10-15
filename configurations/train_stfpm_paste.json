@@ -8,28 +8,28 @@
     "save_embedding":false,
 
     "new_memory":true,
-    "sample_strategy":"replay",
+    "sample_strategy":"single_model",
     "mem_size":300,
 
     "criterion_type":"mse",
 
-    "num_tasks": 1,
-    "task_order":[0],
+    "num_tasks": 10,
+    "task_order":[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
 
     "backbone_model_name": "mcunet-in3",
     "ad_layers": [6, 10, 14],
     "weights": "IMAGENET1K_V2",
-    "student_bootstrap_layer": 4,
+    "student_bootstrap_layer": 5,
 
     "img_size":256,
     "crp_size":256,
 
     "device_id":0,
-    "num_epochs":5,
+    "num_epochs":10,
     "batch_size": 8,
     "lr":0.4,
     "beta":1,
-    "weight_decay": 1e-5,
+    "weight_decay": 1e-4,
     "b1": 0.5,
     "b2": 0.999,
 

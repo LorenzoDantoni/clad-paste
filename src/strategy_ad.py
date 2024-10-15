@@ -243,14 +243,13 @@ def reset_trainer(strategy):
         torch.cuda.empty_cache()
         print("Trainer is reset")
 
-    if strategy.parameters['architecture'] == 'stfpm':
+    if strategy.parameters['architecture'] == 'stfpm' or  strategy.parameters['architecture'] == 'stfpm_paste':
         strategy.trainer.ad_model.teacher = None
         strategy.trainer.ad_model.student = None
         strategy.trainer.optimizer = None
         strategy.trainer.ad_model = None
         gc.collect()
         torch.cuda.empty_cache()
-
 
     trainer = create_trainer(strategy,strategy.parameters,strategy.device,strategy.input_size,strategy.parameters["lr"],strategy.parameters["batch_size"])
     strategy.trainer = trainer
@@ -571,7 +570,7 @@ class Strategy_CL_AD:
             if anomaly_detection_task and anomaly_detection_task_with_metrics:
                 #added "cfa"
                 # added "stfpm" since otherwise it does not work
-                if architecture_name not in ["fastflow", "cfa", "efficientad", "patchcore", "padim", "draem","storig", "stfpm"] and trainer_name!="pix2pix_inpaint" and trainer_name!="classification":
+                if architecture_name not in ["fastflow", "cfa", "efficientad", "patchcore", "padim", "draem","storig", "stfpm", "stfpm_paste"] and trainer_name!="pix2pix_inpaint" and trainer_name!="classification":
                     print("reconstruct_epoch_with_evaluation_ad")
                     diz = reconstruct_epoch_with_evaluation_ad(self, self.parameters, test_data_loader, self.complete_test_dataset,class_name,self.index_training,test_task_index,self.run,self.path_logs)
                     metrics_epoch, other_data_epoch = diz, {}
