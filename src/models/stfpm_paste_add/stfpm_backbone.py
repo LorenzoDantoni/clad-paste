@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -119,7 +119,7 @@ class StfpmBackbone(nn.Module):
         print(f"is teacher: {is_teacher}, layers slice: {layers_slice}")
         self.model = torch.nn.Sequential(*feat_extraction_layers[layers_slice])
 
-    def forward(self, x: torch.Tensor) -> tuple[List[torch.Tensor], torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Tuple[List[torch.Tensor], torch.Tensor]:
 
         """
         Forward method

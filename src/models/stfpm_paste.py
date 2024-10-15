@@ -18,12 +18,12 @@ def create_stfpm_paste(strategy, img_shape, parameters):
     ad_layers = strategy.parameters.get("ad_layers")
     weights = strategy.parameters.get("weights")
     student_bootstrap_layer = parameters.get("student_bootstrap_layer")
-    img_size = strategy.parameters.get("img_size")
+    # img_size = strategy.parameters.get("img_size")
 
     device = torch.device(f"cuda:{device_id}") if torch.cuda.is_available() else torch.device("cpu")
 
     st = StfpmPaste(
-        device, backbone_model_name, img_size, img_size, ad_layers, weights, student_bootstrap_layer
+        device, backbone_model_name, img_shape[1:], img_shape[1:], ad_layers, weights, student_bootstrap_layer
     )
     st = st.to(device)
 
