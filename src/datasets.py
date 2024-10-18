@@ -439,15 +439,19 @@ class MVTecDataset(Dataset):
 
 
 class MemoryDataset(Dataset):
-    def __init__(self, filepaths, strategy): #, dataset_current_task
-    
+    def __init__(self, filepaths, strategy, replay_paste=False):
         self.strategy = strategy
-
         self.filepaths = filepaths
+        self.replay_paste = replay_paste
 
-        filepaths_dict = [ filepath_dict for filepath_dict,filepath_img in filepaths]#filepath_dict,filepath_img: list of .pickles and .pngs for samples stored in memory 
-        #corresponding to one class only, that will be replayed in CL setting for current task
-        indices_original,filepaths_original,class_ids = [],[],[]
+        if replay_paste:
+            filepaths_dict = filepaths
+        else:
+            # filepath_dict, filepath_img: list of .pickles and .png for samples stored in memory
+            filepaths_dict = [filepath_dict for filepath_dict, filepath_img in filepaths]
+
+        # corresponding to one class only, that will be replayed in CL setting for current task
+        feature_maps, indices_original, filepaths_original, class_ids = [], [], [], []
         for filepath_dict in filepaths_dict:
             f = open(filepath_dict, "rb")
             diz = pickle.load(f)
@@ -457,6 +461,7 @@ class MemoryDataset(Dataset):
             indices_original.append(idx)
             filepaths_original.append(filepath)
             class_ids.append(y)
+
         self.indices_original = np.asarray(indices_original)
         self.filepaths_original = np.asarray(filepaths_original)
         self.class_ids = np.asarray(class_ids)
@@ -550,15 +555,23 @@ class MemoryDataset(Dataset):
 
 
 
-    def __getitem__(self, idx):#get item by using idx under which it's saved 
-        filepath_dict,filepath_img = self.filepaths[idx] #filepaths = list of tuples (pickle, img_path)
+    def __getitem__(self, idx):  # get item by using idx under which it's saved
+        if self.replay_paste:
+            filepath_dict = self.filepaths[idx]
+        else:
+            # filepaths = list of tuples (pickle, img_path)
+            filepath_dict, filepath_img = self.filepaths[idx]
 
         f = open(filepath_dict, "rb")
         diz = pickle.load(f)
         f.close()
 
-        y, idx, anomaly_info, filepath = diz["y"],diz["idx"],diz["anomaly_info"],diz["filepath"]
+        y, idx, anomaly_info, filepath = diz["y"], diz["idx"], diz["anomaly_info"], diz["filepath"]
         class_id = y
+
+        if self.replay_paste:
+            feature_map = diz["x"]
+            return feature_map, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
 
         if self.strategy.parameters["architecture"] != "draem":
             #img = Image.open(filepath_img)

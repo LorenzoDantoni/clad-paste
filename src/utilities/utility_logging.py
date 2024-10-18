@@ -34,6 +34,7 @@ def from_sample_to_dict(sample):
     diz["filepath"] = sample[4]
     return diz
 
+
 def load_pickle(filepath):  
     f = open(filepath, "rb")
     obj = pickle.load(f)
@@ -41,10 +42,12 @@ def load_pickle(filepath):
     return obj
 
 
-def save_pickle(obj, filepath):  
-    f = open(filepath, "wb")
-    pickle.dump(obj,f)
-    f.close()
+def save_pickle(obj, filepath):
+    try:
+        with open(filepath, "wb") as f:
+            pickle.dump(obj, f)
+    except Exception as e:
+        print(f"Error saving pickle file {filepath}: {e}")
 
 def save_img(img, filepath):
     from src.utilities.utility_images import convert2img

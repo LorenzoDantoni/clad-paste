@@ -76,7 +76,8 @@ print(f"labels_map: {labels_map}")
 if isinstance(complete_train_dataset[0][0], dict):
     input_size = complete_train_dataset[0][0]["image"].shape#input_size=256
 else:
-    input_size = complete_train_dataset[0][0].shape#input_size=256
+    # torch.Size([3, 256, 256])
+    input_size = complete_train_dataset[0][0].shape
 print(f"input_size: {input_size}")
 
 original_stdout = sys.stdout # Save a reference to the original standard output
@@ -128,7 +129,7 @@ for index_training in range(0,num_tasks):#0...9
     #    self.current_train_dataset = current_train_dataset
     #    self.current_test_dataset = current_test_dataset
 
-    # LOAD Memory 
+    # LOAD Memory
     # assign memory to strategy and load it from memory(use_memory) or create a new one(new_memory)    use_memory,memory_dataset_path_train,memory_dataset_path_test,type_memory_train,type_memory_test,memory_model_path,new_memory,sample_strategy = give_memory_parameters(strategy.parameters)
     load_memory_main(strategy, strategy.parameters["memory_dataset_path_train"], strategy.parameters["type_memory_train"])#(strategy, "", "memorized")
 
@@ -153,6 +154,8 @@ for index_training in range(0,num_tasks):#0...9
     num_epochs = strategy.num_epochs 
     strategy.training_task(current_train_dataset,current_test_dataset,num_epochs,batch_size)
 
+    # if "replay" then
+    # creates samples to put in memory (pickle,png for each sample) for all tasks seen till now (also the current one)
     memory_update_main(strategy)
 
     # SAVE MODEL

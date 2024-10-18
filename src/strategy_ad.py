@@ -416,49 +416,57 @@ class Strategy_CL_AD:
         """ 
         #ADDED
         start_time = time.time()
+
         if self.parameters["architecture"] == "storig" :
-            current_train_data_loader = DataLoader(current_train_dataset , batch_size=batch_size, pin_memory      =          True,
-                                    shuffle         =          True)  
+            current_train_data_loader = DataLoader(
+                current_train_dataset, batch_size=batch_size, pin_memory=True, shuffle=True
+            )
         else:
-            current_train_data_loader = DataLoader(current_train_dataset , batch_size=batch_size, pin_memory      =          True,
-                                    shuffle         =          True,
-                                    drop_last       =          True)
+            current_train_data_loader = DataLoader(
+                current_train_dataset, batch_size=batch_size, pin_memory=True, shuffle=True, drop_last=True
+            )
+
         if self.parameters["architecture"] in ["patchcore", "padim", "draem"]:
-            current_test_data_loader = DataLoader(current_test_dataset , batch_size = 1, pin_memory      =          True)
+            current_test_data_loader = DataLoader(current_test_dataset, batch_size = 1, pin_memory=True)
         else:
-            current_test_data_loader = DataLoader(current_test_dataset , batch_size=batch_size, pin_memory      =          True)
-        '''
-        if self.parameters["architecture"] == "eff":
-            current_train_data_loader = InfiniteDataloader(current_train_data_loader)
-            current_test_data_loader = InfiniteDataloader(current_test_data_loader)
-        '''
+            current_test_data_loader = DataLoader(current_test_dataset, batch_size=batch_size, pin_memory=True)
+
         self.current_train_data_loader = current_train_data_loader
         self.current_test_data_loader = current_test_data_loader
         
         if self.parameters["architecture"] == "efficientad":
             print("Device teacher: " + str(self.trainer.ad_model.device))
             self.trainer.ad_model.teacher.eval()
-            self.trainer.ad_model.teacher_mean, self.trainer.ad_model.teacher_std = teacher_normalization(self.trainer.ad_model.teacher, current_train_data_loader)
+            self.trainer.ad_model.teacher_mean, self.trainer.ad_model.teacher_std = teacher_normalization(
+                self.trainer.ad_model.teacher, current_train_data_loader
+            )
 
-        index_training, train_task_id, task_label,labels_map,task_order,num_tasks,run,path_logs = self.return_strategy_parameters()
+        index_training, train_task_id, task_label, labels_map, task_order, num_tasks, run, path_logs = self.return_strategy_parameters()
 
         save_model_param = self.parameters.get("save_model", True)
+
         if self.lr_scheduler:
             print("Lr scheduler used")
             if self.parameters["architecture"] == "cfa":
-                self.trainer.optimizer  = torch.optim.AdamW(params        = self.trainer.ad_model.parameters(), 
-                                    lr            = self.lr,
-                                    weight_decay  = 5e-4,
-                                    amsgrad       = True )
+                self.trainer.optimizer  = torch.optim.AdamW(
+                    params=self.trainer.ad_model.parameters(),
+                    lr=self.lr,
+                    weight_decay=5e-4,
+                    amsgrad=True
+                )
             else:
-                self.trainer.optimizer = torch.optim.Adam(self.trainer.ad_model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
+                self.trainer.optimizer = torch.optim.Adam(
+                    self.trainer.ad_model.parameters(),
+                    lr=self.lr,
+                    betas=(self.b1, self.b2)
+                )
+
             scheduler = ReduceLROnPlateau(self.trainer.optimizer, mode='min', patience=3, min_lr=1e-6, factor=0.5)
 
         # Early Stopping
         if self.early_stopping:
             print("Early Stopping used")
             early_stopping = EarlyStopping(patience=self.parameters['patience'])
-        
 
         if self.parameters["architecture"] == "cfa":
             self.trainer.ad_model._update_centroid(current_train_data_loader,self.model)
@@ -474,30 +482,40 @@ class Strategy_CL_AD:
         #ADDED
         end_time = time.time()
         add_elapsed_time = end_time - start_time
-        self.elapsed_time = self.elapsed_time+add_elapsed_time
-        while(epoch<num_epochs): 
+        self.elapsed_time = self.elapsed_time + add_elapsed_time
+
+        while epoch<num_epochs:
             #ADDED
             start_time = time.time()
-            self.current_epoch = epoch
+
             # TRAIN EPOCH
+            self.current_epoch = epoch
             print(f"current_epoch: {epoch}")
+
             self.mode = "train"
-            metrics_epoch,other_data_epoch = self.trainer.train_epoch(current_train_data_loader)#self.trainer.train_epoch!
+            metrics_epoch, other_data_epoch = self.trainer.train_epoch(current_train_data_loader)
+
             losses.append(metrics_epoch['loss'])
-            self.update_state(self.metrics_train,self.other_data_train,metrics_epoch,other_data_epoch, mode="train")
+
+            self.update_state(self.metrics_train, self.other_data_train, metrics_epoch, other_data_epoch, mode="train")
+
             #ADDED
             end_time = time.time()
             add_elapsed_time = end_time - start_time
             self.elapsed_time = self.elapsed_time+add_elapsed_time
+
             # TEST EPOCH
             if self.parameters["architecture"] not in ["patchcore", "padim"]:
                 if eval==True and self.current_epoch%n_critic_eval==0:
                     self.mode = "test"
-                    metrics_epoch,other_data_epoch = self.trainer.test_epoch(current_test_data_loader)#self.trainer.test_epoch!
-                    self.update_state(self.metrics_test,self.other_data_test,metrics_epoch,other_data_epoch, mode="val")
+                    metrics_epoch, other_data_epoch = self.trainer.test_epoch(current_test_data_loader)
+
+                    self.update_state(self.metrics_test, self.other_data_test, metrics_epoch,other_data_epoch, mode="val")
+
                     if self.lr_scheduler:
                         #scheduler.step(metrics_epoch['loss'])
                         scheduler.step(metrics_epoch['f1'])
+
                     if self.early_stopping:
                         #early_stopping(metrics_epoch['loss'])
                         early_stopping(1-metrics_epoch['f1'])
@@ -510,9 +528,9 @@ class Strategy_CL_AD:
 
 
     def evaluate_test_stream(self, test_stream, batch_size):
-        '''
+        """
         It evaluates performance of model on the test dataloader
-        '''
+        """
         index_training, train_task_id, task_label,labels_map,task_order,num_tasks,run,path_logs = self.return_strategy_parameters()
         from src.utilities.utility_main import give_memory_parameters,give_ad_parameters
         use_memory,memory_dataset_path_train,memory_dataset_path_test,type_memory_train,type_memory_test,memory_model_path,new_memory,sample_strategy = give_memory_parameters(self.parameters)

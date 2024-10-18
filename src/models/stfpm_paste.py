@@ -104,7 +104,7 @@ class StfpmPaste(nn.Module):
 
         self.anomaly_map_generator = AnomalyMapGenerator(image_size=self.output_size)
 
-    def forward(self, batch_imgs: torch.Tensor) -> tuple[dict[str, Tensor], dict[str, Tensor]] | Tensor:
+    def forward(self, batch_imgs: torch.Tensor, sample_strategy: str, index_training: int, test) -> tuple[dict[str, Tensor], dict[str, Tensor]] | Tensor:
         """
         Forward pass
 
@@ -120,12 +120,19 @@ class StfpmPaste(nn.Module):
 
         # the teacher is frozen
         self.teacher.eval()
+        self.sliced_teacher.eval()
         with torch.no_grad():
-            t_feat, bootstrap_feat = self.teacher(batch_imgs)
+            if sample_strategy == "compressed_replay_paste" and index_training != 0 and not test:
+                t_feat, _ = self.sliced_teacher(batch_imgs)
+            else:
+                t_feat, bootstrap_feat = self.teacher(batch_imgs)
 
         # perform PaSTe or not
-        x = batch_imgs if self.student_bootstrap_layer is None else bootstrap_feat
-        s_feat, _ = self.student(x)
+        if sample_strategy == "compressed_replay_paste" and index_training != 0 and not test:
+            s_feat, _ = self.student(batch_imgs)
+        else:
+            x = batch_imgs if self.student_bootstrap_layer is None else bootstrap_feat
+            s_feat, _ = self.student(x)
 
         t_feat = self.convert_features_to_dict(t_feat)
         s_feat = self.convert_features_to_dict(s_feat)
@@ -171,6 +178,7 @@ class StfpmPaste(nn.Module):
     def eval(self, *args, **kwargs):
         self.teacher.eval()
         self.student.eval()
+        self.sliced_teacher.eval()
         return super().eval(*args, **kwargs)
 
 
@@ -218,6 +226,7 @@ class StfpmPaste(nn.Module):
             weights=self.weights_name,
             bootstrap_idx=self.student_bootstrap_layer,
             is_teacher=True,
+            sliced_teacher=False,
         )
 
         # the student's weights are initialized randomly
@@ -228,6 +237,17 @@ class StfpmPaste(nn.Module):
             weights=None,
             bootstrap_idx=self.student_bootstrap_layer,  # shared layers
             is_teacher=False,
+            sliced_teacher=False,
+        )
+
+        self.sliced_teacher = StfpmBackbone(
+            self.device,
+            self.backbone_model_name,
+            self.ad_layers,
+            weights=self.weights_name,
+            bootstrap_idx=self.student_bootstrap_layer,
+            is_teacher=True,
+            sliced_teacher=True,
         )
 
 

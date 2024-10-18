@@ -38,6 +38,7 @@ class StfpmBackbone(nn.Module):
         weights: Optional[str],
         bootstrap_idx: int = None,
         is_teacher: bool = False,
+        sliced_teacher: bool = False,
     ):
         """
         This class manages the STFPM backbones of teacher and student.
@@ -100,7 +101,7 @@ class StfpmBackbone(nn.Module):
                     torch.nn.Sequential(*feat_extraction_layers[:2])
                 ] + feat_extraction_layers[2:]
 
-        if is_teacher:
+        if is_teacher and not sliced_teacher:
             # use all the layers until the last desired layer
             layers_slice = slice(max(ad_layers_idxs) + 1)
             self.layer_offset = 0

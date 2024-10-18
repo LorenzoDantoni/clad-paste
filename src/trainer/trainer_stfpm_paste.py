@@ -27,19 +27,22 @@ class Trainer_STFPM_paste:
 
         self.loss_fcn = STFPMLoss()
 
+        self.sample_strategy = self.strategy.parameters.get("sample_strategy")
+
 
     def train_epoch(self, dataloader):
         self.ad_model.training = True
         l_fastflow_loss = 0.0
         dataSize = len(dataloader.dataset)
         lista_indices = []
+
+        self.ad_model.sliced_teacher.eval()
         self.ad_model.teacher.eval()
         self.ad_model.student.train()
 
         batch_index = 0
-
         for batch in tqdm(dataloader):
-            batch = self.strategy.memory.create_batch_data(batch, batch[0].shape[0])
+            batch = self.strategy.memory.create_batch_data(batch, batch[0].shape[0], self.sample_strategy)
 
             x = batch[0]
             batch_size = x.size(0)
@@ -49,7 +52,7 @@ class Trainer_STFPM_paste:
             self.optimizer.zero_grad()
             x = x.to(self.ad_model.device)
 
-            teacher_features, student_features = self.ad_model.forward(x)
+            teacher_features, student_features = self.ad_model.forward(x, self.sample_strategy, self.strategy.index_training, test=False)
             loss = self.loss_fcn(teacher_features, student_features)
             loss.backward()
 
@@ -96,7 +99,7 @@ class Trainer_STFPM_paste:
             data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.ad_model.forward(data)
+                anomaly_maps = self.ad_model.forward(data, self.sample_strategy, self.strategy.index_training, test=True)
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             # print(f"Heatmap size: {heatmap.shape}")
@@ -162,7 +165,7 @@ class Trainer_STFPM_paste:
             data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.ad_model.forward(data)
+                anomaly_maps = self.ad_model.forward(data, self.sample_strategy, self.strategy.index_training, test=True)
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             # print(f"Heatmap size: {heatmap.shape}")
