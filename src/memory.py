@@ -260,7 +260,7 @@ class MemoryNaive(Memory):
                 filepaths = []
                 self.tasks_memory[task_id] = MemoryDataset(filepaths, self.strategy)
 
-    def memory_update(self,dataset_task, task_id):
+    def memory_update(self,dataset_task, task_id, current_task):
         '''
         Updates memory after the model training on each task, where:
             - Creates the folders memorized and generated for the specified sample strategy.
@@ -306,7 +306,7 @@ class MemoryReplayAllData(MemoryFromMemorized):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
        super().__init__(strategy, task_order, dir_experiment_path, mem_size, current_task)
 
-    def memory_update(self,dataset_task, task_id):
+    def memory_update(self,dataset_task, task_id, current_task):
         sample_indices = list(range(0,len(dataset_task)))
         for _,idx in enumerate(sample_indices):
             sample = dataset_task[idx]
@@ -346,7 +346,7 @@ class MemoryReplay(MemoryFromMemorized):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
        super().__init__(strategy, task_order, dir_experiment_path, mem_size, current_task)
 
-    def memory_update(self,dataset_task, task_id):
+    def memory_update(self,dataset_task, task_id, current_task):
         num_samples_per_task = self.mem_size//self.num_tasks
         num_samples_per_task = min(num_samples_per_task, len(dataset_task))
 
@@ -401,7 +401,7 @@ class MemoryLatentReplay(MemoryFromGenerated):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
        super().__init__(strategy, task_order, dir_experiment_path, mem_size, current_task)
 
-    def memory_update(self,dataset_task, task_id):
+    def memory_update(self,dataset_task, task_id, current_task):
         num_samples_per_task = self.mem_size//self.num_tasks
         num_samples_per_task = min(num_samples_per_task, len(dataset_task))
         
@@ -446,7 +446,7 @@ class MemoryGenerativeReplay(MemoryFromGenerated):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
        super().__init__(strategy, task_order, dir_experiment_path, mem_size, current_task)
 
-    def memory_update(self,dataset_task, task_id):
+    def memory_update(self,dataset_task, task_id, current_task):
         num_samples_per_task = self.mem_size//self.num_tasks
         num_samples_per_task = min(num_samples_per_task, len(dataset_task))
 
@@ -494,7 +494,7 @@ class MemoryCompressedDegenerativeReplay(MemoryFromGenerated):
     def __init__(self, strategy, task_order, dir_experiment_path, mem_size, current_task):
        super().__init__(strategy, task_order, dir_experiment_path, mem_size, current_task)
 
-    def memory_update(self,dataset_task, task_id):
+    def memory_update(self,dataset_task, task_id, current_task):
         num_samples_per_task = self.mem_size//self.num_tasks
         num_samples_per_task = min(num_samples_per_task, len(dataset_task))
 

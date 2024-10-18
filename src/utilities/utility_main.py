@@ -141,9 +141,9 @@ def memory_update_main(strategy):
         for task_id_old in range(0,self.index_training+1):
             self.memory.task_id_old = task_id_old
             if self.index_training==task_id_old:
-                self.memory.memory_update(self.task_train_dataset, self.index_training)
+                self.memory.memory_update(self.task_train_dataset, self.index_training, current_task=True)
             else:
-                self.memory.memory_update(self.memory.tasks_memory[task_id_old], self.index_training)
+                self.memory.memory_update(self.memory.tasks_memory[task_id_old], self.index_training, current_task=False)
 
 def load_model_main(strategy):
     if strategy.num_epochs>0 and strategy.use_model:
