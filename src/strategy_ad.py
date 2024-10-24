@@ -574,6 +574,10 @@ class Strategy_CL_AD:
             test_task_id = task_order[test_task_index]
             self.test_task_id = test_task_id
             class_name = self.labels_map[test_task_index]
+
+            # added for Feature Importance
+            # self.trainer.ad_model.anomaly_map_generator.task_label_evaluate = class_name
+
             architecture_name = self.parameters["architecture"]
             trainer_name = self.parameters.get("trainer", "")
 

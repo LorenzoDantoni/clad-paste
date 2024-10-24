@@ -8,13 +8,13 @@
     "save_embedding":false,
 
     "new_memory":true,
-    "sample_strategy":"compressed_replay_paste",
-    "mem_size":300,
+    "sample_strategy":"multi_task",
+    "mem_size":50,
 
     "criterion_type":"mse",
 
-    "num_tasks": 4,
-    "task_order":[0, 1, 2, 3],
+    "num_tasks": 10,
+    "task_order":[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
 
     "backbone_model_name": "mcunet-in3",
     "ad_layers": [6, 10, 14],
@@ -25,7 +25,7 @@
     "crp_size":256,
 
     "device_id":0,
-    "num_epochs":2,
+    "num_epochs": 10,
     "batch_size": 8,
     "lr":0.4,
     "beta":1,
@@ -33,7 +33,7 @@
     "b1": 0.5,
     "b2": 0.999,
 
-    "early_stopping":true,
+    "early_stopping":false,
     "patience":7,
 
     "test_only_seen_tasks":false,

@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+from typing import Tuple
 from src.models.stfpm_add.loss import STFPMLoss
 from src.utilities.utility_ad import standardize_scores, test_epoch_anomaly_maps
 from src.utilities.utility_plot import plot_predict
@@ -46,13 +47,26 @@ class Trainer_STFPM_paste:
 
             x = batch[0]
             batch_size = x.size(0)
+            batch_task_labels = batch[1]
             indices = batch[2]
             lista_indices.extend(indices.detach().cpu().numpy())
 
             self.optimizer.zero_grad()
             x = x.to(self.ad_model.device)
 
-            teacher_features, student_features = self.ad_model.forward(x, self.sample_strategy, self.strategy.index_training, test=False)
+            teacher_features, student_features = self.ad_model.forward(
+                x,
+                self.sample_strategy,
+                self.strategy.index_training,
+                test=False,
+                caller="train_epoch",
+                batch_task_labels=batch_task_labels
+            )
+
+            # FEATURE IMPORTANCE
+            if hasattr(self.ad_model, 'feature_masks'):
+                teacher_features, student_features = self.filter_features_per_layer_mask(teacher_features, student_features, batch_task_labels)
+
             loss = self.loss_fcn(teacher_features, student_features)
             loss.backward()
 
@@ -99,7 +113,14 @@ class Trainer_STFPM_paste:
             data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.ad_model.forward(data, self.sample_strategy, self.strategy.index_training, test=True)
+                anomaly_maps = self.ad_model.forward(
+                    data,
+                    self.sample_strategy,
+                    self.strategy.index_training,
+                    test=True,
+                    caller="test_epoch",
+                    batch_task_labels=class_ids
+                )
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             # print(f"Heatmap size: {heatmap.shape}")
@@ -165,7 +186,14 @@ class Trainer_STFPM_paste:
             data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.ad_model.forward(data, self.sample_strategy, self.strategy.index_training, test=True)
+                anomaly_maps = self.ad_model.forward(
+                    data,
+                    self.sample_strategy,
+                    self.strategy.index_training,
+                    test=True,
+                    caller="evaluate_data",
+                    batch_task_labels=class_ids
+                )
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             # print(f"Heatmap size: {heatmap.shape}")
@@ -207,3 +235,80 @@ class Trainer_STFPM_paste:
         metrics_epoch = diz_metriche
         other_data_epoch = {}
         return metrics_epoch, other_data_epoch
+
+    def filter_features_per_layer_mask(self, teacher_features: dict, student_features: dict, batch_task_labels) -> Tuple[dict, dict]:
+        """
+        Filter teacher and student features using the top important features per layer using a mask.
+
+        Args:
+            teacher_features (dict): Dictionary of teacher features for each layer.
+            student_features (dict): Dictionary of student features for each layer.
+            batch_task_labels: Task labels for each sample in the batch.
+
+        Returns:
+            Tuple[dict, dict]: Filtered teacher and student features.
+        """
+        feature_masks = self.ad_model.feature_masks
+
+        filtered_teacher_features = {}
+        filtered_student_features = {}
+
+        for layer in teacher_features.keys():
+            filtered_teacher_features[layer] = []
+            filtered_student_features[layer] = []
+
+            for i in range(batch_task_labels.size(0)):
+                task_idx = batch_task_labels[i].item()
+                task_label = self.strategy.labels_map[task_idx]
+
+                if task_label in feature_masks and layer in feature_masks[task_label]:
+                    mask = feature_masks[task_label][layer]
+                    # mask_expanded = mask.unsqueeze(0).expand_as(teacher_features[layer][i])
+
+                    filtered_teacher_features[layer].append(teacher_features[layer][i] * mask)
+                    filtered_student_features[layer].append(student_features[layer][i] * mask)
+                else:
+                    # If no mask, use full feature set for this sample
+                    filtered_teacher_features[layer].append(teacher_features[layer][i])
+                    filtered_student_features[layer].append(student_features[layer][i])
+
+            # Stack the filtered features back into a tensor
+            filtered_teacher_features[layer] = torch.stack(filtered_teacher_features[layer])
+            filtered_student_features[layer] = torch.stack(filtered_student_features[layer])
+
+        return filtered_teacher_features, filtered_student_features
+
+    # def filter_features_per_layer_mask(self, teacher_features: dict, student_features: dict) -> Tuple[dict, dict]:
+    #     """
+    #     Filter teacher and student features using the top important features per layer using a mask.
+    #
+    #     Args:
+    #         teacher_features (dict): Dictionary of teacher features for each layer.
+    #         student_features (dict): Dictionary of student features for each layer.
+    #
+    #     Returns:
+    #         Tuple[dict, dict]: Filtered teacher and student features.
+    #     """
+    #     task_label = self.strategy.task_label
+    #     feature_masks = self.ad_model.feature_masks
+    #     mask_per_layer = feature_masks[task_label]
+    #
+    #     filtered_teacher_features = {}
+    #     filtered_student_features = {}
+    #
+    #     for layer in teacher_features.keys():
+    #         if layer in mask_per_layer:
+    #             # Apply the precomputed mask
+    #             mask = mask_per_layer[layer]
+    #
+    #             # Expand mask to match batch size
+    #             mask_expanded = mask.unsqueeze(0).expand_as(teacher_features[layer])
+    #
+    #             filtered_teacher_features[layer] = teacher_features[layer] * mask_expanded
+    #             filtered_student_features[layer] = student_features[layer] * mask_expanded
+    #         else:
+    #             # If no mask, use full feature set
+    #             filtered_teacher_features[layer] = teacher_features[layer]
+    #             filtered_student_features[layer] = student_features[layer]
+    #
+    #     return filtered_teacher_features, filtered_student_features

@@ -23,7 +23,7 @@ def create_stfpm_paste(strategy, img_shape, parameters):
     device = torch.device(f"cuda:{device_id}") if torch.cuda.is_available() else torch.device("cpu")
 
     st = StfpmPaste(
-        device, backbone_model_name, img_shape[1:], img_shape[1:], ad_layers, weights, student_bootstrap_layer
+        device, strategy, backbone_model_name, img_shape[1:], img_shape[1:], ad_layers, weights, student_bootstrap_layer
     )
     st = st.to(device)
 
@@ -51,6 +51,7 @@ class StfpmPaste(nn.Module):
     def __init__(
             self,
             device: torch.device,
+            strategy,
             backbone_model_name: Optional[str] = None,
             input_size: tuple[int, int] = (224, 224),
             output_size: tuple[int, int] = (224, 224),
@@ -77,6 +78,7 @@ class StfpmPaste(nn.Module):
         super(StfpmPaste, self).__init__()
 
         self.device = device
+        self.strategy = strategy
 
         self.input_size = input_size
         self.output_size = output_size
@@ -102,9 +104,9 @@ class StfpmPaste(nn.Module):
         ):
             self.__define_backbones__()
 
-        self.anomaly_map_generator = AnomalyMapGenerator(image_size=self.output_size)
+        self.anomaly_map_generator = AnomalyMapGenerator(strategy, image_size=self.output_size)
 
-    def forward(self, batch_imgs: torch.Tensor, sample_strategy: str, index_training: int, test) -> tuple[dict[str, Tensor], dict[str, Tensor]] | Tensor:
+    def forward(self, batch_imgs: torch.Tensor, sample_strategy: str, index_training: int, test, caller, batch_task_labels) -> tuple[dict[str, Tensor], dict[str, Tensor]] | Tensor:
         """
         Forward pass
 
@@ -140,7 +142,8 @@ class StfpmPaste(nn.Module):
         if self.training:
             return t_feat, s_feat
         else:
-            return self.anomaly_map_generator(teacher_features=t_feat, student_features=s_feat)
+            return self.anomaly_map_generator(
+                teacher_features=t_feat, student_features=s_feat, caller=caller, batch_task_labels=batch_task_labels)
             # return self.post_process(t_feat, s_feat)
 
 

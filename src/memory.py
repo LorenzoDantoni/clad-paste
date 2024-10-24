@@ -644,5 +644,3 @@ def load_dataset_from_memory(strategy,memory_dataset_path,type_memory,task_order
         dataset_task = memory.tasks_memory[temp_index_training]
         new_stream_data.append(dataset_task)
     return new_stream_data, ConcatDataset(new_stream_data)
-                
-                   

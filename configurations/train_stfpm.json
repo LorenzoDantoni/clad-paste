@@ -3,7 +3,6 @@
     "trainer":"stfpm",
     "mem_size":300,
 
-
     "anomaly_detection_task":true,
     "anomaly_detection_task_with_metrics":true,
     "produce_visual_debug":false,

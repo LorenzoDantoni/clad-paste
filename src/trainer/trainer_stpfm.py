@@ -64,6 +64,8 @@ class Trainer_STFPM():
         )
         self.loss_fcn = STFPMLoss()
         #self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=int(0.95 * strategy.parameters['num_epochs']), gamma=0.1)
+
+        self.sample_strategy = self.strategy.parameters.get("sample_strategy")
     
 
     def train_epoch(self,dataloader):
@@ -78,7 +80,7 @@ class Trainer_STFPM():
 
 
         for batch in tqdm(dataloader):
-            batch = self.strategy.memory.create_batch_data(batch, batch[0].shape[0])
+            batch = self.strategy.memory.create_batch_data(batch, batch[0].shape[0], self.sample_strategy)
             x = batch[0]
             batch_size = x.size(0)
             indices = batch[2]
@@ -200,7 +202,7 @@ class Trainer_STFPM():
             data = data.to(self.ad_model.device)
 
             with torch.no_grad():
-                anomaly_maps = self.ad_model.forward(data)
+                anomaly_maps = self.ad_model.forward(data, caller="evaluate_data")
 
             heatmap = anomaly_maps[:, 0].detach().cpu().numpy()
             #print(f"Heatmap size: {heatmap.shape}")
