@@ -8,7 +8,7 @@
     "save_embedding":false,
 
     "new_memory":true,
-    "sample_strategy":"multi_task",
+    "sample_strategy":"naive",
     "mem_size":50,
 
     "criterion_type":"mse",
@@ -33,7 +33,7 @@
     "b1": 0.5,
     "b2": 0.999,
 
-    "early_stopping":false,
+    "early_stopping":true,
     "patience":7,
 
     "test_only_seen_tasks":false,

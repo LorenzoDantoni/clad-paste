@@ -129,7 +129,7 @@ test_only_seen_tasks = strategy.parameters.get("test_only_seen_tasks")
 if sample_strategy == "multi_task" and test_only_seen_tasks:
     raise ValueError("test_only_seen_tasks is True but you are in multi_task mode")
 
-if sample_strategy == "multi_task":
+if sample_strategy == "multi_task" or sample_strategy == "naive":
     percentage_top_features_to_retain = 10
 
     # Step 1

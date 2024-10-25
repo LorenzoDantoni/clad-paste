@@ -205,7 +205,10 @@ def extract_top_features_from_each_task(strategy, num_tasks, train_stream, perce
         print(f"\nPreprocessing task {task_label}")
 
         # Load the current task's training dataset
-        current_train_dataset = train_stream[0].datasets[index_training]
+        if strategy.parameters.get("sample_strategy") == "multi_task":
+            current_train_dataset = train_stream[0].datasets[index_training]
+        else:
+            current_train_dataset = train_stream[index_training]
         current_train_data_loader = DataLoader(
             current_train_dataset,
             batch_size=strategy.batch_size,
