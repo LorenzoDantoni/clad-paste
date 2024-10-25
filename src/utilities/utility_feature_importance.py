@@ -389,13 +389,15 @@ def create_feature_mask_for_each_task(filtered_tasks_top_results, all_task_teach
 
             B, C, H, W = teacher_embeddings_layer.shape
 
-            mask = torch.zeros((C, H, W), device=device)
+            # mask = torch.zeros((C, H, W), device=device)
+            mask = torch.ones((C, H, W), device=device)
 
             # Iterate through each patch (i, j) to apply top feature filtering
             for i in range(H):
                 for j in range(W):
                     top_features = patch_results[(i, j)]['indices']
-                    mask[top_features, i, j] = 1.0  # Mark important features as 1 in the mask
+                    # mask[top_features, i, j] = 1.0  # Mark important features as 1 in the mask
+                    mask[top_features, i, j] = 0.0  # Mark important features as 1 in the mask
 
             feature_masks[task_label][layer] = mask
 
