@@ -97,6 +97,8 @@ class Memory:
         """
         tasks = [i for i in range(self.num_tasks-1)]
         # if you have current_task=3 then tasks=[0,1,2], and if batch_size=8 then random_tasks_ids=[22112002]
+
+        np.random.seed(self.strategy.seed)
         random_task_ids = np.random.choice(tasks, size=memory_batch_size, replace=True)
 
         batch_old0, batch_old1, batch_old2, batch_old3, batch_old4 = [], [], [], [], []  # lists respectively: imgs,classes([0..9]),idx,anomaly_info,filepaths

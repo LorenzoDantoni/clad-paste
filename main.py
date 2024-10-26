@@ -106,6 +106,8 @@ init_strategy_variables(strategy, complete_train_dataset,complete_test_dataset,t
 sample_strategy = strategy.parameters.get("sample_strategy")
 test_only_seen_tasks = strategy.parameters.get("test_only_seen_tasks")
 
+strategy.seed = seed
+
 if sample_strategy=="multi_task" and test_only_seen_tasks:
     raise ValueError("test_only_seen_tasks is True but you are in multi_task mode")
 
