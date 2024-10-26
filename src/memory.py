@@ -10,6 +10,8 @@ from src.utilities.utility_logging import from_sample_to_dict,save_pickle,save_i
 from src.utilities.utility_pix2pix import create_summary, create_summary_by_numpy, forward_test, produce_scaled_A_from_B, forward_test
 from src.utilities.utility_ad import *
 from src.utilities.utility_models import produce_output_given_model_and_sample, produce_output_given_model_from_noise
+from src.utilities.utility_quantization import quantize_feature_map
+
 
 def create_memory(strategy, task_order, dir_experiment_path, mem_size, current_task, type_strategy):
     '''
@@ -568,8 +570,14 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
                 filenames_diz = [filename for filename in filenames if filename.endswith(".pickle")]
                 filepaths = [change_filename_diz(dir_path, filename_diz) for filename_diz in filenames_diz]
 
+                sample_strategy = self.strategy.parameters.get("sample_strategy")
+
                 # Save the memory dataset for the task
-                self.tasks_memory[task_id] = MemoryDataset(filepaths, self.strategy, replay_paste=True)
+                if sample_strategy == "compressed_replay_paste":
+                    self.tasks_memory[task_id] = MemoryDataset(filepaths, self.strategy, replay_paste=True)
+                else:
+                    self.tasks_memory[task_id] = MemoryDataset(filepaths, self.strategy, replay_paste=False)
+
             except Exception as e:
                 print(f"Error loading memory from {dir_path}: {e}")
 
@@ -590,11 +598,14 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
 
            if current_task:
                input_tensor = sample[0].unsqueeze(0).to(self.strategy.device)
-               # Get the feature map from the teacher model (until bootstrap layer)
-               _, bootstrap_feat = self.strategy.trainer.ad_model.teacher(input_tensor)
-               diz['x'] = bootstrap_feat
+               _, feature_map = self.strategy.trainer.ad_model.teacher(input_tensor)
            else:
-               diz['x'] = sample[0]
+               feature_map = sample[0]
+
+           # Quantize the feature map and store the quantization params
+           quantized_map, min_val, scale = quantize_feature_map(feature_map)
+           diz['x'] = quantized_map
+           diz['quantization_params'] = {'min_val': min_val.item(), 'scale': scale}
 
            path_memorized = os.path.join(
                self.dir_experiment_path, "memorized", f"T{index_training}", f"{class_id}"
@@ -604,31 +615,6 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
            filepath_diz = os.path.join(path_memorized, f"{index_dataset}.pickle").replace('\\', '/')
            save_pickle(diz, filepath_diz)
 
-    # def memory_update(self,dataset_task, index_training):
-    #     index_training = self.strategy.index_training
-    #     task_id_old = self.task_id_old
-    #     num_samples_per_task = self.mem_size//self.num_tasks
-    #     num_samples_per_task = min(num_samples_per_task, len(dataset_task))
-    #
-    #     rng = default_rng()
-    #     sample_indices = rng.choice(len(dataset_task), size=num_samples_per_task, replace=False)
-    #
-    #     # first time seen the task it is necessary to save real_A_32
-    #     if index_training==task_id_old:
-    #         MemoryCompressedDegenerativeReplay.memory_update(self,dataset_task, index_training)
-    #     else:
-    #         pass
-    #
-    #         src_path = os.path.join(self.strategy.path_logs, "memorized", f"T{index_training-1}", f"{task_id_old}").replace('\\','/')
-    #         dst_path = os.path.join(self.strategy.path_logs, "memorized", f"T{index_training}", f"{task_id_old}").replace('\\','/')
-    #         import shutil
-    #         shutil.copytree(src_path, dst_path)
-    #
-    #         src_path = os.path.join(self.strategy.path_logs, "generated", f"T{index_training-1}", f"{task_id_old}").replace('\\','/')
-    #         dst_path = os.path.join(self.strategy.path_logs, "generated", f"T{index_training}", f"{task_id_old}").replace('\\','/')
-    #         import shutil
-    #         shutil.copytree(src_path, dst_path)
-                      
 
 def load_memory(strategy,memory_dataset_path,type_memory, task_order, current_task, load_all_tasks=False):
     self = strategy
