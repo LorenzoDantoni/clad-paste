@@ -554,8 +554,6 @@ class MemoryDataset(Dataset):
         anomaly_mask = np.transpose(anomaly_mask, (2, 0, 1))
         return image, augmented_image, anomaly_mask, has_anomaly
 
-
-
     def __getitem__(self, idx):  # get item by using idx under which it's saved
         if self.replay_paste:
             filepath_dict = self.filepaths[idx]
@@ -572,7 +570,18 @@ class MemoryDataset(Dataset):
         if self.replay_paste:
             feature_map = diz["x"]
 
-            if 'quantization_params' in diz:
+            if 'pca_params' in diz:
+                pca_components = diz['pca_params']['components']
+                pca_mean = diz['pca_params']['mean']
+                C = diz['pca_params']['original_channels']
+                H, W = diz['pca_params']['height'], diz['pca_params']['width']
+
+                # feature_map = feature_map.reshape(H * W, -1)  # Reshape to 2D for inverse PCA
+                feature_map = np.dot(feature_map, pca_components.T) + pca_mean  # PCA reconstruction
+                feature_map = feature_map.T.reshape(C, H, W)  # Reshape back to original 3D shape
+
+                feature_map = torch.tensor(feature_map, dtype=torch.float32)
+            elif 'quantization_params' in diz:
                 min_val = diz['quantization_params']['min_val']
                 scale = diz['quantization_params']['scale']
                 feature_map = feature_map.float() * scale + min_val
@@ -580,15 +589,16 @@ class MemoryDataset(Dataset):
             return feature_map, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
 
         if self.strategy.parameters["architecture"] != "draem":
-            #img = Image.open(filepath_img)
+            # img = Image.open(filepath_img)
             img = Image.open(filepath_img).convert('RGB')
-        
-        img_size = self.strategy.parameters['img_size']   
-        crp_size = self.strategy.parameters['crp_size']          
+
+        img_size = self.strategy.parameters['img_size']
+        crp_size = self.strategy.parameters['crp_size']
         transform_img = create_transform_img(img_size, crp_size)
 
-        if self.strategy.parameters['architecture'] == 'efficientad':  
-            x = torch.cat([torch.unsqueeze(transform_img(img),dim=0), torch.unsqueeze(transform_img(transform_ae(img)),dim=0)])
+        if self.strategy.parameters['architecture'] == 'efficientad':
+            x = torch.cat(
+                [torch.unsqueeze(transform_img(img), dim=0), torch.unsqueeze(transform_img(transform_ae(img)), dim=0)])
             return x, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
         elif self.strategy.parameters['architecture'] == 'draem':  
             anomaly_source_idx = torch.randint(0, len(self.anomaly_source_paths), (1,)).item()
@@ -600,6 +610,52 @@ class MemoryDataset(Dataset):
         else:
             x = transform_img(img)
             return x, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
+
+    # TODO: uniform scale quantization
+    # def __getitem__(self, idx):  # get item by using idx under which it's saved
+    #     if self.replay_paste:
+    #         filepath_dict = self.filepaths[idx]
+    #     else:
+    #         # filepaths = list of tuples (pickle, img_path)
+    #         filepath_dict, filepath_img = self.filepaths[idx]
+    #
+    #     f = open(filepath_dict, "rb")
+    #     diz = pickle.load(f)
+    #     f.close()
+    #
+    #     y, idx, anomaly_info, filepath = diz["y"], diz["idx"], diz["anomaly_info"], diz["filepath"]
+    #
+    #     if self.replay_paste:
+    #         feature_map = diz["x"]
+    #
+    #         if 'quantization_params' in diz:
+    #             min_val = diz['quantization_params']['min_val']
+    #             scale = diz['quantization_params']['scale']
+    #             feature_map = feature_map.float() * scale + min_val
+    #
+    #         return feature_map, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
+    #
+    #     if self.strategy.parameters["architecture"] != "draem":
+    #         #img = Image.open(filepath_img)
+    #         img = Image.open(filepath_img).convert('RGB')
+    #
+    #     img_size = self.strategy.parameters['img_size']
+    #     crp_size = self.strategy.parameters['crp_size']
+    #     transform_img = create_transform_img(img_size, crp_size)
+    #
+    #     if self.strategy.parameters['architecture'] == 'efficientad':
+    #         x = torch.cat([torch.unsqueeze(transform_img(img),dim=0), torch.unsqueeze(transform_img(transform_ae(img)),dim=0)])
+    #         return x, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
+    #     elif self.strategy.parameters['architecture'] == 'draem':
+    #         anomaly_source_idx = torch.randint(0, len(self.anomaly_source_paths), (1,)).item()
+    #         image, augmented_image, anomaly_mask, has_anomaly = self.transform_image_draem(filepath_img,
+    #                                                                         self.anomaly_source_paths[anomaly_source_idx])
+    #         sample = {'image': torch.from_numpy(image), "anomaly_mask": torch.from_numpy(anomaly_mask),
+    #                 'augmented_image': torch.from_numpy(augmented_image), 'has_anomaly': torch.from_numpy(has_anomaly)}
+    #         return sample, y, idx, anomaly_info, filepath
+    #     else:
+    #         x = transform_img(img)
+    #         return x, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
 
         
 class ContinualLearningBenchmark:#returns task_stream = (train, test dataset) in specified order by the array task_order
