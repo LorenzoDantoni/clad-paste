@@ -577,7 +577,7 @@ class MemoryDataset(Dataset):
                 H, W = diz['pca_params']['height'], diz['pca_params']['width']
 
                 # feature_map = feature_map.reshape(H * W, -1)  # Reshape to 2D for inverse PCA
-                feature_map = np.dot(feature_map, pca_components.T) + pca_mean  # PCA reconstruction
+                feature_map = np.dot(feature_map, pca_components) + pca_mean  # PCA reconstruction
                 feature_map = feature_map.T.reshape(C, H, W)  # Reshape back to original 3D shape
 
                 feature_map = torch.tensor(feature_map, dtype=torch.float32)

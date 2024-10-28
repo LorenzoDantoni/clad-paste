@@ -134,7 +134,8 @@ class Memory:
                             batch_old0[key].append(tensor.reshape(1, 1))
                 else:
                     if sample_strategy == "compressed_replay_paste":
-                        batch_old0.append(sample[0])
+                        x = sample[0].unsqueeze(0).to(self.strategy.device)
+                        batch_old0.append(x)
                     else:
                         batch_old0.append(sample[0].reshape(1,3,self.strategy.parameters['crp_size'],self.strategy.parameters['crp_size']))
                
@@ -607,7 +608,7 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
            # Remove batch dimension if present, making the feature map shape (C, H, W)
            feature_map = feature_map.squeeze(0)
            C, H, W = feature_map.shape
-           reshaped_feature_map = feature_map.reshape(C, -1).T  # Reshape the feature map to (H*W, C) for PCA
+           reshaped_feature_map = feature_map.reshape(C, -1).T.cpu().numpy()  # Reshape the feature map to (H*W, C) for PCA
 
            # Step 1: Fit PCA with full components to find optimal n_components
            pca = PCA()
