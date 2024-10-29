@@ -134,7 +134,9 @@ class Memory:
                             batch_old0[key].append(tensor.reshape(1, 1))
                 else:
                     if sample_strategy == "compressed_replay_paste":
-                        x = sample[0].unsqueeze(0).to(self.strategy.device)
+                        x = sample[0].to(self.strategy.device)
+                        if x.dim() == 3:
+                            x = x.unsqueeze(0)
                         batch_old0.append(x)
                     else:
                         batch_old0.append(sample[0].reshape(1,3,self.strategy.parameters['crp_size'],self.strategy.parameters['crp_size']))
