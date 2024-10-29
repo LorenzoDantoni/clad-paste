@@ -405,16 +405,16 @@ def manage_dataset(strategy, parameters,complete_train_dataset,complete_test_dat
     return complete_train_dataset,complete_test_dataset,train_stream,test_stream
 
     
-def memory_update_main(strategy):
+def memory_update_main(strategy, compression=''):
     self = strategy
     new_memory = strategy.new_memory
     if new_memory:
         for task_id_old in range(0,self.index_training+1):
             self.memory.task_id_old = task_id_old
             if self.index_training==task_id_old:
-                self.memory.memory_update(self.task_train_dataset, self.index_training, current_task=True)
+                self.memory.memory_update(self.task_train_dataset, self.index_training, task_id_old, current_task=True, compression=compression, )
             else:
-                self.memory.memory_update(self.memory.tasks_memory[task_id_old], self.index_training, current_task=False)
+                self.memory.memory_update(self.memory.tasks_memory[task_id_old], self.index_training, task_id_old, current_task=False, compression=compression)
 
 
 

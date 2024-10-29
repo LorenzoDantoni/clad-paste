@@ -585,6 +585,8 @@ class MemoryDataset(Dataset):
                 min_val = diz['quantization_params']['min_val']
                 scale = diz['quantization_params']['scale']
                 feature_map = feature_map.float() * scale + min_val
+            else:
+                feature_map = diz["x"]
 
             return feature_map, np.asarray(y), np.asarray(idx), np.asarray(anomaly_info), filepath
 

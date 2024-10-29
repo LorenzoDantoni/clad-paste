@@ -158,7 +158,7 @@ for index_training in range(0,num_tasks):#0...9
 
     # if "replay" then
     # creates samples to put in memory (pickle,png for each sample) for all tasks seen till now (also the current one)
-    memory_update_main(strategy)
+    memory_update_main(strategy, compression="pca")
 
     # SAVE MODEL
     save_model_main(strategy)

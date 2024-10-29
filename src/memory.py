@@ -585,7 +585,7 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
             except Exception as e:
                 print(f"Error loading memory from {dir_path}: {e}")
 
-    def memory_update(self, dataset_task, index_training, current_task):
+    def memory_update(self, dataset_task, index_training, task_id_old, current_task, compression=''):
        num_samples_per_task = self.mem_size // self.num_tasks
        num_samples_per_task = min(num_samples_per_task, len(dataset_task))
 
@@ -605,42 +605,38 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
            else:
                feature_map = sample[0]
 
-           # Remove batch dimension if present, making the feature map shape (C, H, W)
-           feature_map = feature_map.squeeze(0)
-           C, H, W = feature_map.shape
-           reshaped_feature_map = feature_map.reshape(C, -1).T.cpu().numpy()  # Reshape the feature map to (H*W, C) for PCA
+           if compression == "pca" and current_task:
+               feature_map = feature_map.squeeze(0)
+               C, H, W = feature_map.shape
+               reshaped_feature_map = feature_map.reshape(C, -1).T.cpu().numpy()  # Reshape the feature map to (H*W, C) for PCA
 
-           # Step 1: Fit PCA with full components to find optimal n_components
-           pca = PCA()
-           pca.fit(reshaped_feature_map)
+               # Step 1: Fit PCA with full components to find optimal n_components
+               pca = PCA()
+               pca.fit(reshaped_feature_map)
 
-           # Step 2: Calculate cumulative explained variance ratio
-           cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
-           n_components = np.argmax(cumulative_variance >= 0.90) + 1
+               # Step 2: Calculate cumulative explained variance ratio
+               cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
+               n_components = np.argmax(cumulative_variance >= 0.98) + 1
 
-           pca_compressed_map = pca.transform(reshaped_feature_map)[:, :n_components]
+               print(f"Training index: {index_training}, PCA components selection T{task_id_old} {n_components}/{C}")
 
-           diz['x'] = pca_compressed_map
-           diz['pca_params'] = {
-               'mean': pca.mean_,
-               'components': pca.components_[:n_components],
-               'original_channels': C,
-               'height': H,
-               'width': W
-           }
+               pca_compressed_map = pca.transform(reshaped_feature_map)[:, :n_components]
 
-           # pca = PCA(n_components=n_components)
-           # pca_compressed_map  = pca.fit_transform(reshaped_feature_map) # Compressed (H*W, n_components)
+               diz['x'] = pca_compressed_map
+               diz['pca_params'] = {
+                   'mean': pca.mean_,
+                   'components': pca.components_[:n_components],
+                   'original_channels': C,
+                   'height': H,
+                   'width': W
+               }
 
-           # Store compressed feature map and PCA parameters (for reconstruction during loading)
-           # diz['x'] = pca_compressed_map
-           # diz['pca_params'] = {
-           #     'mean': pca.mean_,
-           #     'components': pca.components_,
-           #     'original_channels': C,
-           #     'height': H,
-           #     'width': W
-           # }
+           elif compression == "scale_quantization" and current_task:
+               quantized_map, min_val, scale = quantize_feature_map(feature_map)
+               diz['x'] = quantized_map
+               diz['quantization_params'] = {'min_val': min_val.item(), 'scale': scale}
+           else:
+               diz['x'] = feature_map
 
            path_memorized = os.path.join(
                self.dir_experiment_path, "memorized", f"T{index_training}", f"{class_id}"
@@ -649,40 +645,6 @@ class MemoryCompressedReplayPaste(MemoryFromGenerated):
 
            filepath_diz = os.path.join(path_memorized, f"{index_dataset}.pickle").replace('\\', '/')
            save_pickle(diz, filepath_diz)
-
-    # TODO: uniform scale quantization
-    # def memory_update(self, dataset_task, index_training, current_task):
-    #    num_samples_per_task = self.mem_size // self.num_tasks
-    #    num_samples_per_task = min(num_samples_per_task, len(dataset_task))
-    #
-    #    # Randomly select a subset of indices from the current task's dataset
-    #    rng = default_rng()
-    #    sample_indices = rng.choice(len(dataset_task), size=num_samples_per_task, replace=False)
-    #
-    #    for idx in sample_indices:
-    #        sample = dataset_task[idx]
-    #        diz = from_sample_to_dict(sample)
-    #        class_id = diz["y"]
-    #        index_dataset = diz["idx"]
-    #
-    #        if current_task:
-    #            input_tensor = sample[0].unsqueeze(0).to(self.strategy.device)
-    #            _, feature_map = self.strategy.trainer.ad_model.teacher(input_tensor)
-    #        else:
-    #            feature_map = sample[0]
-    #
-    #        # Quantize the feature map and store the quantization params
-    #        quantized_map, min_val, scale = quantize_feature_map(feature_map)
-    #        diz['x'] = quantized_map
-    #        diz['quantization_params'] = {'min_val': min_val.item(), 'scale': scale}
-    #
-    #        path_memorized = os.path.join(
-    #            self.dir_experiment_path, "memorized", f"T{index_training}", f"{class_id}"
-    #        ).replace('\\', '/')
-    #        os.makedirs(path_memorized, exist_ok=True)
-    #
-    #        filepath_diz = os.path.join(path_memorized, f"{index_dataset}.pickle").replace('\\', '/')
-    #        save_pickle(diz, filepath_diz)
 
 
 def load_memory(strategy,memory_dataset_path,type_memory, task_order, current_task, load_all_tasks=False):
