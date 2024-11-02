@@ -1,12 +1,19 @@
+import os
+
 import numpy as np
 import torch
 import random
 import itertools
+import seaborn as sns
+import pandas as pd
 
+from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torch import Tensor
+
 
 
 def extract_embeddings_from_teacher(strategy, dataloader):
@@ -193,6 +200,7 @@ def extract_top_features_from_each_task(strategy, num_tasks, train_stream, perce
     # Initialize a dictionary to store the top features for all tasks
     all_tasks_top_results = {}
     all_task_teacher_embeddings = {}
+    optimal_n_components_tasks = {}
 
     if strategy.parameters.get("sample_strategy") == "multi_task":
         num_tasks = 10
@@ -201,6 +209,7 @@ def extract_top_features_from_each_task(strategy, num_tasks, train_stream, perce
     for index_training in range(num_tasks):
         # Get the label of the current task
         task_label = labels_map[index_training]
+        optimal_n_components_tasks[task_label] = {}
 
         print(f"\nPreprocessing task {task_label}")
 
@@ -231,6 +240,8 @@ def extract_top_features_from_each_task(strategy, num_tasks, train_stream, perce
             percentage_random_patches=0.10  # Sample 10% of patches for PCA component estimation
         )
 
+        optimal_n_components_tasks[task_label] = optimal_n_components
+
         # Step 3: Apply PCA per patch and compute the top important features
         print(f"\nComputing PCA per patch ({task_label}) ...")
         patch_top_features = apply_pca_per_patch(
@@ -241,7 +252,9 @@ def extract_top_features_from_each_task(strategy, num_tasks, train_stream, perce
 
         all_tasks_top_results[task_label] = patch_top_features
 
-    return all_tasks_top_results, all_task_teacher_embeddings
+        # plot_feature_importance_across_layers(patch_top_features, task_label)
+
+    return all_tasks_top_results, all_task_teacher_embeddings, optimal_n_components_tasks
 
 
 def find_and_remove_feature_conflicts_range_patch_wise(all_tasks_top_results, all_task_teacher_embeddings):
@@ -389,16 +402,348 @@ def create_feature_mask_for_each_task(filtered_tasks_top_results, all_task_teach
 
             B, C, H, W = teacher_embeddings_layer.shape
 
-            # mask = torch.zeros((C, H, W), device=device)
-            mask = torch.ones((C, H, W), device=device)
+            mask = torch.zeros((C, H, W), device=device)
+            # mask = torch.ones((C, H, W), device=device)
 
             # Iterate through each patch (i, j) to apply top feature filtering
             for i in range(H):
                 for j in range(W):
                     top_features = patch_results[(i, j)]['indices']
-                    # mask[top_features, i, j] = 1.0  # Mark important features as 1 in the mask
-                    mask[top_features, i, j] = 0.0  # Mark important features as 1 in the mask
+                    mask[top_features, i, j] = 1.0  # Mark important features as 1 in the mask
+                    # mask[top_features, i, j] = 0.0
 
             feature_masks[task_label][layer] = mask
 
     return feature_masks
+
+
+def combine_indices_across_tasks(all_tasks_top_results):
+    """
+    Gathers the combined top feature indices for each patch and layer across all tasks.
+
+    Args:
+        all_tasks_top_results (dict): A dictionary where keys are task labels and values are dictionaries
+                                      containing layer-wise top patch features for each task.
+
+    Returns:
+        combined_indices (dict): A dictionary where keys are (layer, patch) tuples and values are the combined
+                                 sets of indices across tasks.
+    """
+    combined_indices = {}
+
+    # Iterate over task labels and gather the combined indices for each [layer, (i, j)]
+    for task_label, layers_results in all_tasks_top_results.items():
+        for layer, patch_results in layers_results.items():
+            if layer not in combined_indices:
+                combined_indices[layer] = {}
+
+            for (i, j), top_features in patch_results.items():
+                if (i, j) not in combined_indices[layer]:
+                    combined_indices[layer][(i, j)] = set()
+
+                # Add the top feature indices of the current task for the current patch
+                combined_indices[layer][(i, j)].update(top_features['indices'])
+
+    return combined_indices
+
+
+def select_and_combine_filtered_features(all_tasks_teacher_embeddings, combined_indices):
+    """
+    Selects and concatenates the filtered features across all tasks based on the combined indices.
+    The output is an array ready to be fed into t-SNE.
+
+    Args:
+        all_tasks_teacher_embeddings (dict): Dictionary containing embeddings for all tasks.
+                                             Keys are task labels, and values are dictionaries with
+                                             layer-wise embeddings.
+                                             Shape for each layer is (B, C, H, W).
+        combined_indices (dict): Dictionary where keys are (layer, patch) and values are the combined indices
+                                 across tasks.
+
+    Returns:
+        all_filtered_features (ndarray): The concatenated filtered features across all tasks
+                                          Shape (total_batches, total_filtered_features).
+        task_labels_array (ndarray): Array of task labels corresponding to each sample for classification or clustering.
+    """
+    all_filtered_features = []
+    task_labels_array = []
+
+    # Iterate over each task and select features based on the combined indices
+    for task_label, task_embeddings in all_tasks_teacher_embeddings.items():
+        task_filtered_features = []
+
+        # Iterate over each layer and patch to select the corresponding features
+        for layer, patch_indices in combined_indices.items():
+            embeddings = task_embeddings[layer]  # Shape (B, C, H, W)
+            B, C, H, W = embeddings.shape
+
+            for (i, j), indices in patch_indices.items():
+                # Select the features for the current patch (i, j) using the combined indices
+                selected_features = embeddings[:, list(indices), i, j]  # Shape (B, len(indices))
+                task_filtered_features.append(selected_features)
+
+        # Concatenate the filtered features for the current task along the feature dimension
+        task_filtered_features = np.concatenate(task_filtered_features, axis=1)  # Shape (B, total_selected_features)
+
+        # Add to the list of all filtered features
+        all_filtered_features.append(task_filtered_features)
+
+        # Create a label array for this task, repeating the task label for each batch sample
+        task_labels_array.extend([task_label] * B)
+
+    # Stack the features for all tasks together
+    all_filtered_features = np.vstack(all_filtered_features)  # Shape (total_batches, total_filtered_features)
+
+    # Convert task_labels_array to a numpy array for easier manipulation later
+    task_labels_array = np.array(task_labels_array)
+
+    return all_filtered_features, task_labels_array
+
+
+def plot_tsne(all_filtered_features, task_labels_array, percentage_top_features_to_retain, seed):
+    """
+        Computes and plots t-SNE for the given features and task labels.
+
+        Args:
+            all_filtered_features (ndarray): The concatenated filtered features across all tasks.
+                                             Shape (total_samples, total_filtered_features).
+            task_labels_array (ndarray): Array of task labels corresponding to each sample.
+            percentage_top_features_to_retain (int): Number of top percentage of features retained.
+            seed (int): The random seed for t-SNE.
+
+        Returns:
+            tsne_results (ndarray): The 2D t-SNE embedding for the input features.
+    """
+
+    # Step 1: Perform t-SNE on the filtered features
+    tsne = TSNE(n_components=2, random_state=seed)
+    tsne_results = tsne.fit_transform(all_filtered_features)  # Shape (total_samples, 2)
+
+    # Step 2: Create a scatter plot of the t-SNE results, colored by task labels
+    plt.figure(figsize=(10, 8))
+    sns.scatterplot(
+        x=tsne_results[:, 0], y=tsne_results[:, 1], hue=task_labels_array, palette="deep", legend="full", s=60
+    )
+
+    plt.xlabel('t-SNE Dimension 1')
+    plt.ylabel('t-SNE Dimension 2')
+    plt.legend()
+    plt.title(f't-SNE plot of top {percentage_top_features_to_retain}% features - Patch-wise PCA ')
+
+    layer_dir = os.path.join('plots', 'tsne')
+    os.makedirs(layer_dir, exist_ok=True)
+
+    plot_filename = os.path.join(layer_dir, f'tsne_patch_wise_pca_top{percentage_top_features_to_retain}%.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+    return tsne_results
+
+def plot_optimal_components_per_layer_vertical(optimal_n_components_tasks):
+    """
+    Plots a grouped bar plot for each layer, showing the optimal number of PCA components per task.
+
+    Args:
+        optimal_n_components_tasks (dict): Dictionary where keys are task labels and values are dictionaries of
+                                           optimal PCA components per layer.
+                                           Example: {task_label: {layer_name: n_components, ...}, ...}
+    """
+
+    tasks = list(optimal_n_components_tasks.keys())
+    layers = list(next(iter(optimal_n_components_tasks.values())).keys())
+
+    # Set up a grid of subplots, one for each layer
+    num_layers = len(layers)
+    fig, axes = plt.subplots(num_layers, 1, figsize=(10, 18), sharex=True)
+
+    for i, layer in enumerate(layers):
+        # Gather the component counts for the current layer across tasks
+        n_components = [optimal_n_components_tasks[task][layer] for task in tasks]
+
+        # Plot the grouped bar plot for the current layer
+        axes[i].bar(tasks, n_components, color=plt.cm.tab10.colors[:len(tasks)])
+        axes[i].set_title(f"{layer}", fontsize=14, fontweight='bold')
+        axes[i].set_ylabel("Optimal PCA Components", fontsize=12)
+        axes[i].tick_params(axis='x', rotation=45, labelsize=14)
+        axes[i].grid(True, axis='y', linestyle='--', alpha=0.6)
+
+    plt.tight_layout(h_pad=2)
+
+    layer_dir = os.path.join('plots', 'pca_components')
+    os.makedirs(layer_dir, exist_ok=True)
+    plot_filename = os.path.join(layer_dir, f'pca_components_retention_by_layer.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+
+def plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks):
+    """
+    Plots a grouped bar plot for each layer in a 1-row, 3-column layout,
+    showing the optimal number of PCA components per task.
+
+    Args:
+        optimal_n_components_tasks (dict): Dictionary where keys are task labels and values are dictionaries of
+                                           optimal PCA components per layer.
+                                           Example: {task_label: {layer_name: n_components, ...}, ...}
+    """
+
+    tasks = list(optimal_n_components_tasks.keys())
+    layers = list(next(iter(optimal_n_components_tasks.values())).keys())
+
+    # Set up a grid of subplots with 1 row and 3 columns
+    num_layers = len(layers)
+    fig, axes = plt.subplots(1, num_layers, figsize=(20, 6), sharey=True)
+
+    for i, layer in enumerate(layers):
+        n_components = [optimal_n_components_tasks[task][layer] for task in tasks]
+
+        # Plot the grouped bar plot for the current layer
+        axes[i].bar(tasks, n_components, color=plt.cm.tab10.colors[:len(tasks)])
+        axes[i].set_title(f"{layer}", fontsize=14, fontweight='bold')
+        axes[i].tick_params(axis='x', rotation=45, labelsize=12)
+        axes[i].grid(True, axis='y', linestyle='--', alpha=0.6)
+
+    # Set shared y-axis label for all subplots
+    fig.text(0, 0.5, 'Optimal PCA Components', va='center', rotation='vertical', fontsize=12)
+    plt.tight_layout(w_pad=2)  # Increase spacing between plots
+
+    layer_dir = os.path.join('plots', 'pca_components')
+    os.makedirs(layer_dir, exist_ok=True)
+    plot_filename = os.path.join(layer_dir, f'pca_components_retention_by_layer.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+def plot_feature_usage_distribution(all_tasks_top_results):
+    # num_tasks = 10
+    fig, axes = plt.subplots(2, 5, figsize=(20, 8), sharey=True)
+    axes = axes.ravel()  # Flatten axes for easier indexing
+
+    for i, (task_label, top_features) in enumerate(all_tasks_top_results.items()):
+        feature_counts = {}
+
+        for layer_features in top_features.values():
+            for patch_data in layer_features.values():
+                indices = patch_data['indices']
+                for index in indices:
+                    feature_counts[index] = feature_counts.get(index, 0) + 1
+
+        sorted_indices = sorted(feature_counts.keys())
+        sorted_counts = [feature_counts[idx] for idx in sorted_indices]
+        axes[i].bar(sorted_indices, sorted_counts)
+        axes[i].set_title(f'{task_label}')
+        axes[i].set_xlabel('Feature Index')
+        if i % 5 == 0:
+            axes[i].set_ylabel('Frequency')
+
+    plt.suptitle("Feature Usage Distribution per Task")
+    plt.tight_layout()
+
+    layer_dir = os.path.join('plots', 'feature_usage_distribution')
+    os.makedirs(layer_dir, exist_ok=True)
+    plot_filename = os.path.join(layer_dir, f'feature_usage_distribution_per_task.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+
+def plot_layerwise_feature_usage_heatmap(all_tasks_top_results):
+    fig, axes = plt.subplots(2, 5, figsize=(20, 10))
+    axes = axes.ravel()  # Flatten axes for easier indexing
+
+    for i, (task_label, top_features) in enumerate(all_tasks_top_results.items()):
+        # Prepare layer-feature count matrix for the heatmap
+        layer_feature_counts = {}
+
+        for layer_name, layer_features in top_features.items():
+            feature_counts = {}
+            for patch_data in layer_features.values():
+                indices = patch_data['indices']
+                for index in indices:
+                    feature_counts[index] = feature_counts.get(index, 0) + 1
+
+            layer_feature_counts[layer_name] = feature_counts
+
+        heatmap_data = pd.DataFrame(layer_feature_counts).T
+        heatmap_data_sorted = heatmap_data[sorted(heatmap_data.columns)]
+        sns.heatmap(heatmap_data_sorted, ax=axes[i], cmap="YlGnBu", cbar=True, cbar_kws={'shrink': 0.6})
+        axes[i].set_title(f'{task_label}')
+        axes[i].set_xlabel('Feature Index')
+
+    plt.suptitle("Top Feature Usage Heatmap Across Layers and Tasks")
+    plt.tight_layout()
+
+    layer_dir = os.path.join('plots', 'feature_usage_distribution')
+    os.makedirs(layer_dir, exist_ok=True)
+    plot_filename = os.path.join(layer_dir, f'top_feature_usage_heatmap.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+
+def plot_feature_importance_across_layers(patch_top_features, task_label):
+    # Organize importance values by layer
+    layer_importance_data = {layer: [] for layer in patch_top_features.keys()}
+
+    for layer, patches in patch_top_features.items():
+        for patch_info in patches.values():
+            # Append all importance values from this patch to the layer's list
+            layer_importance_data[layer].extend(patch_info['importance'])
+
+    # Prepare data for the box plot
+    layers = list(layer_importance_data.keys())
+    importance_values = [layer_importance_data[layer] for layer in layers]
+
+    # Create box plot
+    plt.figure(figsize=(12, 6))
+    plt.boxplot(importance_values, labels=layers, patch_artist=True, notch=True)
+    # plt.xlabel('Layers')
+    plt.ylabel('Normalized Feature Importance')
+    plt.title(f'Distribution of Normalized Feature Importance Across Layers of {task_label}')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    layer_dir = os.path.join('plots', 'distribution_norm_feature_importance')
+    os.makedirs(layer_dir, exist_ok=True)
+    plot_filename = os.path.join(layer_dir, f'distribution_norm_feature_importance_layers_{task_label}.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+
+def plot_feature_importance_across_tasks(all_tasks_top_results):
+    fig, axes = plt.subplots(2, 5, figsize=(20, 10), sharey=True)
+    fig.suptitle('Distribution of Normalized Feature Importance Across Layers for Each Task', fontsize=16)
+
+    # Flatten the axes array for easier indexing
+    axes = axes.flatten()
+
+    for task_idx, (task_label, patch_top_features) in enumerate(all_tasks_top_results.items()):
+        # Organize importance values by layer for the current task
+        layer_importance_data = {layer: [] for layer in patch_top_features.keys()}
+
+        for layer, patches in patch_top_features.items():
+            for patch_info in patches.values():
+                layer_importance_data[layer].extend(patch_info['importance'])
+
+        layers = list(layer_importance_data.keys())
+        importance_values = [layer_importance_data[layer] for layer in layers]
+
+        # Create box plot in the corresponding subplot
+        ax = axes[task_idx]
+        ax.boxplot(importance_values, labels=layers, patch_artist=True, notch=True)
+        ax.set_title(f'{task_label}')
+
+        # Set y-axis label only for the leftmost subplots for readability
+        if task_idx % 5 == 0:
+            ax.set_ylabel('Normalized Feature Importance')
+
+    # Adjust layout to make space for titles and labels
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    layer_dir = os.path.join('plots', 'distribution_norm_feature_importance')
+    os.makedirs(layer_dir, exist_ok=True)
+    plot_filename = os.path.join(layer_dir, f'all_tasks_distribution_norm_feature_importance_layers.png')
+    plt.savefig(plot_filename)
+    plt.close()
+
+
+
+
+
