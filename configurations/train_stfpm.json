@@ -1,7 +1,7 @@
 {
     "architecture":"stfpm",
     "trainer":"stfpm",
-    "mem_size":300,
+    "mem_size":100,
 
     "anomaly_detection_task":true,
     "anomaly_detection_task_with_metrics":true,
@@ -11,8 +11,10 @@
     "new_memory":true,
     "sample_strategy":"replay",
 
+    "ad_layers": [1, 2, 3],
+
     "device_id":0,
-    "num_epochs":5,
+    "num_epochs":10,
     "batch_size": 8,
     "early_stopping":true,
     "img_size":256,

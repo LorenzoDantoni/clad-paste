@@ -10,7 +10,7 @@ from src.models.stfpm_add.anomaly_map import AnomalyMapGenerator
 
 def create_stfpm(strategy, img_shape, parameters):
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-    st = STFPM(device)
+    st = STFPM(device, strategy)
     st = st.to(device)
     return st, device  
 
@@ -25,7 +25,7 @@ class STFPM(nn.Module):
         backbone (str, optional): Pre-trained model backbone. Defaults to "resnet18".
     """
     def __init__(
-        self, device,
+        self, device, strategy,
         layers: list[str] = ["layer1", "layer2", "layer3"], 
         input_size: tuple[int, int] = (256,256),
         backbone: str = "resnet18", 
@@ -46,7 +46,7 @@ class STFPM(nn.Module):
         self.student.train()
 
         image_size = input_size
-        self.anomaly_map_generator = AnomalyMapGenerator(image_size=image_size)
+        self.anomaly_map_generator = AnomalyMapGenerator(image_size=image_size, strategy=strategy)
 
     def forward(self, images: Tensor) -> Tensor | dict[str, Tensor] | tuple[dict[str, Tensor]]:
         """

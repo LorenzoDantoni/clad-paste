@@ -142,16 +142,15 @@ percentage_top_features_to_retain = 1
 all_tasks_top_results, all_task_teacher_embeddings, optimal_n_components_tasks = extract_top_features_from_each_task(
     strategy, num_tasks, train_stream, percentage_top_features_to_retain, labels_map)
 
-plot_feature_importance_across_tasks(all_tasks_top_results)
-
-# TODO: plot functions
 ##################################################################
-# plot_layerwise_feature_usage_heatmap(all_tasks_top_results)
-# plot_feature_usage_distribution(all_tasks_top_results)
-# plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks)
-# combined_indices = combine_indices_across_tasks(all_tasks_top_results)
-# all_filtered_features, task_labels_array = select_and_combine_filtered_features(all_task_teacher_embeddings, combined_indices)
-# plot_tsne(all_filtered_features, task_labels_array, percentage_top_features_to_retain, seed)
+plot_feature_importance_across_tasks(all_tasks_top_results)
+plot_layerwise_feature_usage_heatmap(all_tasks_top_results)
+plot_feature_usage_distribution(all_tasks_top_results)
+plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks)
+
+combined_indices = combine_indices_across_tasks(all_tasks_top_results)
+all_filtered_features, task_labels_array = select_and_combine_filtered_features(all_task_teacher_embeddings, combined_indices)
+plot_tsne(all_filtered_features, task_labels_array, percentage_top_features_to_retain, seed)
 ##################################################################
 
 # Identify conflicting features across tasks

@@ -530,9 +530,8 @@ def plot_tsne(all_filtered_features, task_labels_array, percentage_top_features_
     plt.legend()
     plt.title(f't-SNE plot of top {percentage_top_features_to_retain}% features - Patch-wise PCA ')
 
-    layer_dir = os.path.join('plots', 'tsne')
+    layer_dir = os.path.join('plots', 'stfpm_tsne')
     os.makedirs(layer_dir, exist_ok=True)
-
     plot_filename = os.path.join(layer_dir, f'tsne_patch_wise_pca_top{percentage_top_features_to_retain}%.png')
     plt.savefig(plot_filename)
     plt.close()
@@ -607,7 +606,7 @@ def plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks):
     fig.text(0, 0.5, 'Optimal PCA Components', va='center', rotation='vertical', fontsize=12)
     plt.tight_layout(w_pad=2)  # Increase spacing between plots
 
-    layer_dir = os.path.join('plots', 'pca_components')
+    layer_dir = os.path.join('plots', 'stfpm_pca_components')
     os.makedirs(layer_dir, exist_ok=True)
     plot_filename = os.path.join(layer_dir, f'pca_components_retention_by_layer.png')
     plt.savefig(plot_filename)
@@ -638,7 +637,7 @@ def plot_feature_usage_distribution(all_tasks_top_results):
     plt.suptitle("Feature Usage Distribution per Task")
     plt.tight_layout()
 
-    layer_dir = os.path.join('plots', 'feature_usage_distribution')
+    layer_dir = os.path.join('plots', 'stfpm_feature_usage_distribution')
     os.makedirs(layer_dir, exist_ok=True)
     plot_filename = os.path.join(layer_dir, f'feature_usage_distribution_per_task.png')
     plt.savefig(plot_filename)
@@ -671,7 +670,7 @@ def plot_layerwise_feature_usage_heatmap(all_tasks_top_results):
     plt.suptitle("Top Feature Usage Heatmap Across Layers and Tasks")
     plt.tight_layout()
 
-    layer_dir = os.path.join('plots', 'feature_usage_distribution')
+    layer_dir = os.path.join('plots', 'stfpm_feature_usage_distribution')
     os.makedirs(layer_dir, exist_ok=True)
     plot_filename = os.path.join(layer_dir, f'top_feature_usage_heatmap.png')
     plt.savefig(plot_filename)
@@ -737,13 +736,8 @@ def plot_feature_importance_across_tasks(all_tasks_top_results):
     # Adjust layout to make space for titles and labels
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
-    layer_dir = os.path.join('plots', 'distribution_norm_feature_importance')
+    layer_dir = os.path.join('plots', 'stfpm_distribution_norm_feature_importance')
     os.makedirs(layer_dir, exist_ok=True)
     plot_filename = os.path.join(layer_dir, f'all_tasks_distribution_norm_feature_importance_layers.png')
     plt.savefig(plot_filename)
     plt.close()
-
-
-
-
-
