@@ -1,3 +1,10 @@
+# PaSTe architecture was added to CLAD and the Compressed Replay Strategy was implemented
+- ```main.py```: the CLAD code was modified to implement the Compressed Replay strategy on the PaSTe framework.
+- ```main_eda.py```: provides methods that analyze the features extracted by PaSTe.
+- ```main_pca.py```: Feature Importance (selecting only the most important features of each object) was applied trying to improve the poor performance of the multi-task strategy. 
+
+---
+
 # CLAD: Continual Learning (Visual) Anomaly Detection Benchmark
 
 ## Abstract
