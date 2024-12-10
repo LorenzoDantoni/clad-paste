@@ -112,7 +112,8 @@ def apply_pca_per_patch(embeddings_dict, optimal_n_components, percentage_top_fe
                 # Store the top indices and importance for patch (i, j)
                 patch_top_features[layer][(i, j)] = {
                     'indices': top_indices,
-                    'importance': top_importance
+                    'importance': top_importance,
+                    'all_features_importance': importance_normalized,
                 }
 
     return patch_top_features
@@ -599,7 +600,7 @@ def plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks):
         # Plot the grouped bar plot for the current layer
         axes[i].bar(tasks, n_components, color=plt.cm.tab10.colors[:len(tasks)])
         axes[i].set_title(f"{layer}", fontsize=14, fontweight='bold')
-        axes[i].tick_params(axis='x', rotation=45, labelsize=12)
+        axes[i].tick_params(axis='x', rotation=45, labelsize=14)
         axes[i].grid(True, axis='y', linestyle='--', alpha=0.6)
 
     # Set shared y-axis label for all subplots
@@ -629,10 +630,10 @@ def plot_feature_usage_distribution(all_tasks_top_results):
         sorted_indices = sorted(feature_counts.keys())
         sorted_counts = [feature_counts[idx] for idx in sorted_indices]
         axes[i].bar(sorted_indices, sorted_counts)
-        axes[i].set_title(f'{task_label}')
-        axes[i].set_xlabel('Feature Index')
+        axes[i].set_title(f'{task_label}', fontdict={'fontsize': 20})
+        axes[i].set_xlabel('Feature Index', fontdict={'fontsize': 16})
         if i % 5 == 0:
-            axes[i].set_ylabel('Frequency')
+            axes[i].set_ylabel('Frequency', fontdict={'fontsize': 16})
 
     plt.suptitle("Feature Usage Distribution per Task")
     plt.tight_layout()
@@ -727,11 +728,12 @@ def plot_feature_importance_across_tasks(all_tasks_top_results):
         # Create box plot in the corresponding subplot
         ax = axes[task_idx]
         ax.boxplot(importance_values, labels=layers, patch_artist=True, notch=True)
-        ax.set_title(f'{task_label}')
+        ax.set_title(f'{task_label}', fontdict={'fontsize': 20})
+        ax.tick_params(axis='x', labelsize=16)
 
         # Set y-axis label only for the leftmost subplots for readability
         if task_idx % 5 == 0:
-            ax.set_ylabel('Normalized Feature Importance')
+            ax.set_ylabel('Normalized Feature Importance', fontdict={'fontsize': 16})
 
     # Adjust layout to make space for titles and labels
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -741,3 +743,100 @@ def plot_feature_importance_across_tasks(all_tasks_top_results):
     plot_filename = os.path.join(layer_dir, f'all_tasks_distribution_norm_feature_importance_layers.png')
     plt.savefig(plot_filename)
     plt.close()
+
+
+def plot_multiple_layers_heatmap(all_tasks_top_results, use_top_features_only=True):
+    num_layers = 3
+    num_cols = 3
+    num_rows = (num_layers + num_cols - 1) // num_cols
+
+    for task_label, patch_top_features in all_tasks_top_results.items():
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 5 * num_rows))
+        fig.suptitle(f"{task_label}", fontsize=22)
+        axes = axes.flatten()
+
+        for idx, (layer, patches) in enumerate(patch_top_features.items()):
+            ax = axes[idx]
+
+            H, W = max(i for i, j in patches.keys()) + 1, max(j for i, j in patches.keys()) + 1
+            importance_matrix = np.zeros((H, W))
+
+            for (i, j), data in patches.items():
+                if use_top_features_only:
+                    # Sum or average the importance of the top features
+                    importance_matrix[i, j] = np.sum(data['importance'])
+                else:
+                    # Sum of all features' importance (if you have this data)
+                    importance_matrix[i, j] = np.sum(data['all_features_importance'])
+
+            # Plot the heatmap for the current layer
+            sns.heatmap(importance_matrix, annot=False, cmap="cividis", ax=ax, cbar_kws={'label': 'Total Importance'})
+            ax.set_title(f"{layer}", fontdict={'fontsize': 20})
+
+            ax.set_xticks([0, W - 1])
+            ax.set_yticks([0, H - 1])
+            ax.set_xticklabels([0, W - 1])
+            ax.set_yticklabels([0, H - 1])
+
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+            plt.setp(ax.get_yticklabels(), rotation=0)
+
+            # ax.set_xlabel("Patch Width")
+            # ax.set_ylabel("Patch Height")
+
+        # Remove any empty axes (if num_layers isn't a perfect multiple of num_cols)
+        for i in range(num_layers, len(axes)):
+            fig.delaxes(axes[i])
+
+        # Adjust layout for better spacing
+        plt.tight_layout()
+        layer_dir = os.path.join('plots', 'test_cividis_top_feature_importance_heatmap_resnet')
+        os.makedirs(layer_dir, exist_ok=True)
+        plot_filename = os.path.join(layer_dir, f'{task_label}_feature_importance_heatmap.png')
+        plt.savefig(plot_filename)
+
+        plt.close()
+
+def no_range_find_and_remove_feature_conflicts_patch_wise(all_tasks_top_results):
+    """
+    Finds feature conflicts across all tasks based on shared feature usage in a patch-wise manner,
+    and removes the conflicting features directly from the task results.
+
+    Args:
+        all_tasks_top_results (dict): A dictionary where keys are task labels and values are dictionaries containing
+                                      layer-wise top patch features for each task.
+
+    Returns:
+        filtered_tasks_top_results (dict): A dictionary where conflicting features have been removed.
+    """
+
+    feature_usage = {}
+
+    # Step 1: Track feature usage across tasks
+    for task_label, layers_results in all_tasks_top_results.items():
+        for layer, patch_results in layers_results.items():
+            for (i, j), top_features in patch_results.items():
+                feature_indices = top_features['indices']
+
+                # Track feature usage by (layer, patch, feature) tuple
+                for feature_index in feature_indices:
+                    feature_key = (layer, (i, j), feature_index)
+                    if feature_key not in feature_usage:
+                        feature_usage[feature_key] = set()
+                    feature_usage[feature_key].add(task_label)
+
+    # Step 2: Identify conflicts (features used by more than one task in the same patch and layer)
+    feature_conflicts = {feature_key: tasks for feature_key, tasks in feature_usage.items() if len(tasks) > 1}
+
+    # Step 3: Remove conflicting features without range overlap check
+    for feature_key, tasks in feature_conflicts.items():
+        layer, (i, j), feature_index = feature_key
+
+        # Update the feature list of each task involved in the conflict
+        for task_label in tasks:
+            indices = all_tasks_top_results[task_label][layer][(i, j)]['indices']
+            new_indices = indices[indices != feature_index]
+            all_tasks_top_results[task_label][layer][(i, j)]['indices'] = new_indices
+
+    # Return the filtered top features after removing conflicts
+    return all_tasks_top_results

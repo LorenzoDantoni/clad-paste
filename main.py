@@ -117,22 +117,17 @@ for index_training in range(0,num_tasks):#0...9
     test_dataset = test_stream[index_training]
 
     strategy.index_training = index_training
-    strategy.train_task_id = task_order[index_training]#class in task_order on specific place (on index_training)
-    strategy.task_label = labels_map[index_training]#name of the class
+    strategy.train_task_id = task_order[index_training]  # class in task_order on specific place (on index_training)
+    strategy.task_label = labels_map[index_training]  # name of the class
     task_label = strategy.task_label
 
     print(f"\nStart Training Task T{index_training} ({ task_label })")
     
-    current_train_dataset,current_test_dataset = strategy.init_variables_dataset(train_dataset,test_dataset )
-    #    it does the following:
-    #    self.task_train_dataset = task_train_dataset
-    #    self.task_test_dataset = task_test_dataset
-
-    #    self.current_train_dataset = current_train_dataset
-    #    self.current_test_dataset = current_test_dataset
+    current_train_dataset,current_test_dataset = strategy.init_variables_dataset(train_dataset,test_dataset)
 
     # LOAD Memory
-    # assign memory to strategy and load it from memory(use_memory) or create a new one(new_memory)    use_memory,memory_dataset_path_train,memory_dataset_path_test,type_memory_train,type_memory_test,memory_model_path,new_memory,sample_strategy = give_memory_parameters(strategy.parameters)
+    # assign memory to strategy and load it from memory(use_memory) or create a new one(new_memory)
+    # use_memory,memory_dataset_path_train,memory_dataset_path_test,type_memory_train,type_memory_test,memory_model_path,new_memory,sample_strategy = give_memory_parameters(strategy.parameters)
     load_memory_main(strategy, strategy.parameters["memory_dataset_path_train"], strategy.parameters["type_memory_train"])#(strategy, "", "memorized")
 
     #Load MemoryReconstruct
@@ -144,11 +139,13 @@ for index_training in range(0,num_tasks):#0...9
         reset_trainer(strategy)
 
     # LOAD MODEL (if memory_model_path!="")
-    load_model_main(strategy)#it does not work until we specify use_memory = True
+    # it does not work until we specify use_memory = True
+    load_model_main(strategy)
 
     # SAVE MODEL
     if index_training==0:
-        save_model_main(strategy)#saved on Wandb
+        # saved on Wandb
+        save_model_main(strategy)
 
     # TRAINING
     print(f"\nTraining Task T{index_training}")
@@ -169,12 +166,7 @@ for index_training in range(0,num_tasks):#0...9
     strategy.evaluate_test_stream(test_stream, batch_size=8)
     plt.close("all")
 
-
 run.log({"Training Time": strategy.elapsed_time})
 print(f"Training time: {strategy.elapsed_time} seconds")
 #run["Finished"].log(True)
 run.finish()
-
-
-
-

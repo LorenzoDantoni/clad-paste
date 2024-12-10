@@ -26,7 +26,8 @@ from src.utilities.utility_feature_importance import extract_top_features_from_e
     find_and_remove_feature_conflicts_range_patch_wise, create_feature_mask_for_each_task, plot_tsne, \
     combine_indices_across_tasks, select_and_combine_filtered_features, plot_optimal_components_per_layer_vertical, \
     plot_optimal_components_per_layer_horizontal, plot_feature_usage_distribution, plot_layerwise_feature_usage_heatmap, \
-    plot_feature_importance_across_tasks
+    plot_feature_importance_across_tasks, plot_multiple_layers_heatmap, \
+    no_range_find_and_remove_feature_conflicts_patch_wise
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -140,98 +141,31 @@ percentage_top_features_to_retain = 1
 
 # Step 1
 all_tasks_top_results, all_task_teacher_embeddings, optimal_n_components_tasks = extract_top_features_from_each_task(
-    strategy, num_tasks, train_stream, percentage_top_features_to_retain, labels_map)
+    strategy, num_tasks, test_stream, percentage_top_features_to_retain, labels_map)
 
+# EDA plots: uncomment the methods based on what plot you want
 ##################################################################
-plot_feature_importance_across_tasks(all_tasks_top_results)
-plot_layerwise_feature_usage_heatmap(all_tasks_top_results)
-plot_feature_usage_distribution(all_tasks_top_results)
-plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks)
+# plot_feature_importance_across_tasks(all_tasks_top_results)
+# plot_layerwise_feature_usage_heatmap(all_tasks_top_results)
+# plot_feature_usage_distribution(all_tasks_top_results)
+# plot_optimal_components_per_layer_horizontal(optimal_n_components_tasks)
 
-combined_indices = combine_indices_across_tasks(all_tasks_top_results)
-all_filtered_features, task_labels_array = select_and_combine_filtered_features(all_task_teacher_embeddings, combined_indices)
-plot_tsne(all_filtered_features, task_labels_array, percentage_top_features_to_retain, seed)
-##################################################################
+# combined_indices = combine_indices_across_tasks(all_tasks_top_results)
+# all_filtered_features, task_labels_array = select_and_combine_filtered_features(all_task_teacher_embeddings, combined_indices)
+# plot_tsne(all_filtered_features, task_labels_array, percentage_top_features_to_retain, seed)
 
-# Identify conflicting features across tasks
+# Remove feature conflicts (no range filter)
 # all_tasks_top_results = find_and_remove_feature_conflicts_range_patch_wise(
-#     all_tasks_top_results, all_task_teacher_embeddings)
+#     all_tasks_top_results, all_task_teacher_embeddings
+# )
 
-# Step 2
-feature_masks = create_feature_mask_for_each_task(all_tasks_top_results, all_task_teacher_embeddings, device)
+# Remove feature conflicts (added range filter)
+# all_tasks_top_results = no_range_find_and_remove_feature_conflicts_patch_wise(all_tasks_top_results)
 
-# strategy.trainer.ad_model.feature_masks = feature_masks  # FI applied during training
-# strategy.trainer.ad_model.anomaly_map_generator.feature_masks = feature_masks  # FI applied during inference
+# plot_multiple_layers_heatmap(all_tasks_top_results)
+##################################################################
 
-# for index_training in range(0, num_tasks):  # 0...9
-#     train_dataset = train_stream[index_training]
-#     test_dataset = test_stream[index_training]
-#
-#     strategy.index_training = index_training
-#     strategy.train_task_id = task_order[index_training]  # class in task_order on specific place (on index_training)
-#     strategy.task_label = labels_map[index_training]  # name of the class
-#     task_label = strategy.task_label
-#
-#     # ADDED FOR FEATURE IMPORTANCE
-#     # strategy.trainer.ad_model.anomaly_map_generator.task_label_training = task_label
-#
-#     print(f"\nStart Training Task T{index_training} ({task_label})")
-#
-#     current_train_dataset, current_test_dataset = strategy.init_variables_dataset(train_dataset, test_dataset)
-#     #    it does the following:
-#     #    self.task_train_dataset = task_train_dataset
-#     #    self.task_test_dataset = task_test_dataset
-#
-#     #    self.current_train_dataset = current_train_dataset
-#     #    self.current_test_dataset = current_test_dataset
-#
-#     # LOAD Memory
-#     # assign memory to strategy and load it from memory(use_memory) or create a new one(new_memory)    use_memory,memory_dataset_path_train,memory_dataset_path_test,type_memory_train,type_memory_test,memory_model_path,new_memory,sample_strategy = give_memory_parameters(strategy.parameters)
-#     load_memory_main(strategy, strategy.parameters["memory_dataset_path_train"],
-#                      strategy.parameters["type_memory_train"])  # (strategy, "", "memorized")
-#
-#     # Load MemoryReconstruct
-#     load_memory_reconstruct_main(strategy, "train", strategy.parameters["memory_reconstruct_dataset_path_train"],
-#                                  strategy.parameters["type_memory_reconstruct_train"])
-#     load_memory_reconstruct_main(strategy, "test", strategy.parameters["memory_reconstruct_dataset_path_test"],
-#                                  strategy.parameters["type_memory_reconstruct_test"])
-#
-#     if strategy.sample_strategy == "single_model":
-#         print("Reset Trainer")
-#         reset_trainer(strategy)
-#
-#     # LOAD MODEL (if memory_model_path!="")
-#     load_model_main(strategy)  # it does not work until we specify use_memory = True
-#
-#     # SAVE MODEL
-#     if index_training == 0:
-#         save_model_main(strategy)  # saved on Wandb
-#
-#     # TRAINING
-#     print(f"\nTraining Task T{index_training}")
-#     batch_size = strategy.batch_size
-#     num_epochs = strategy.num_epochs
-#     strategy.training_task(current_train_dataset, current_test_dataset, num_epochs, batch_size)
-#
-#     # if "replay" then
-#     # creates samples to put in memory (pickle,png for each sample) for all tasks seen till now (also the current one)
-#     memory_update_main(strategy)
-#
-#     # SAVE MODEL
-#     save_model_main(strategy)
-#
-#     print(f"Training time: {strategy.elapsed_time} seconds")
-#
-#     # EVALUATION
-#     print("\nEvaluation:")
-#     strategy.evaluate_test_stream(test_stream, batch_size=8)
-#     plt.close("all")
-#
 run.log({"Training Time": strategy.elapsed_time})
 print(f"Training time: {strategy.elapsed_time} seconds")
 # run["Finished"].log(True)
 run.finish()
-
-
-
-

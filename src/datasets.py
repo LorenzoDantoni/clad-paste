@@ -444,30 +444,29 @@ class MemoryDataset(Dataset):
         self.filepaths = filepaths
         self.replay_paste = replay_paste
 
-        # TODO: commented since for now is useless
-        # if replay_paste:
-        #     filepaths_dict = filepaths
-        # else:
-        #     # filepath_dict, filepath_img: list of .pickles and .png for samples stored in memory
-        #     filepaths_dict = [filepath_dict for filepath_dict, filepath_img in filepaths]
+        if replay_paste:
+            filepaths_dict = filepaths
+        else:
+            # filepath_dict, filepath_img: list of .pickles and .png for samples stored in memory
+            filepaths_dict = [filepath_dict for filepath_dict, filepath_img in filepaths]
 
         # corresponding to one class only, that will be replayed in CL setting for current task
-        # feature_maps, indices_original, filepaths_original, class_ids = [], [], [], []
-        # for filepath_dict in filepaths_dict:
-        #     f = open(filepath_dict, "rb")
-        #     diz = pickle.load(f)
-        #     f.close()
-        #
-        #     y, idx, anomaly_info, filepath = diz["y"],diz["idx"],diz["anomaly_info"],diz["filepath"]
-        #     indices_original.append(idx)
-        #     filepaths_original.append(filepath)
-        #     class_ids.append(y)
-        #
-        # self.indices_original = np.asarray(indices_original)
-        # self.filepaths_original = np.asarray(filepaths_original)
-        # self.class_ids = np.asarray(class_ids)
-        #
-        # self.anomaly_source_paths = self.strategy.parameters['anomaly_source_paths']
+        feature_maps, indices_original, filepaths_original, class_ids = [], [], [], []
+        for filepath_dict in filepaths_dict:
+            f = open(filepath_dict, "rb")
+            diz = pickle.load(f)
+            f.close()
+
+            y, idx, anomaly_info, filepath = diz["y"],diz["idx"],diz["anomaly_info"],diz["filepath"]
+            indices_original.append(idx)
+            filepaths_original.append(filepath)
+            class_ids.append(y)
+
+        self.indices_original = np.asarray(indices_original)
+        self.filepaths_original = np.asarray(filepaths_original)
+        self.class_ids = np.asarray(class_ids)
+
+        self.anomaly_source_paths = self.strategy.parameters['anomaly_source_paths']
 
         if self.strategy.parameters['architecture'] == "draem":
             self.resize_shape = [256, 256]
