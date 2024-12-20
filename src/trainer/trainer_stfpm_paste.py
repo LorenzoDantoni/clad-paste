@@ -277,38 +277,3 @@ class Trainer_STFPM_paste:
             filtered_student_features[layer] = torch.stack(filtered_student_features[layer])
 
         return filtered_teacher_features, filtered_student_features
-
-    # def filter_features_per_layer_mask(self, teacher_features: dict, student_features: dict) -> Tuple[dict, dict]:
-    #     """
-    #     Filter teacher and student features using the top important features per layer using a mask.
-    #
-    #     Args:
-    #         teacher_features (dict): Dictionary of teacher features for each layer.
-    #         student_features (dict): Dictionary of student features for each layer.
-    #
-    #     Returns:
-    #         Tuple[dict, dict]: Filtered teacher and student features.
-    #     """
-    #     task_label = self.strategy.task_label
-    #     feature_masks = self.ad_model.feature_masks
-    #     mask_per_layer = feature_masks[task_label]
-    #
-    #     filtered_teacher_features = {}
-    #     filtered_student_features = {}
-    #
-    #     for layer in teacher_features.keys():
-    #         if layer in mask_per_layer:
-    #             # Apply the precomputed mask
-    #             mask = mask_per_layer[layer]
-    #
-    #             # Expand mask to match batch size
-    #             mask_expanded = mask.unsqueeze(0).expand_as(teacher_features[layer])
-    #
-    #             filtered_teacher_features[layer] = teacher_features[layer] * mask_expanded
-    #             filtered_student_features[layer] = student_features[layer] * mask_expanded
-    #         else:
-    #             # If no mask, use full feature set
-    #             filtered_teacher_features[layer] = teacher_features[layer]
-    #             filtered_student_features[layer] = student_features[layer]
-    #
-    #     return filtered_teacher_features, filtered_student_features
